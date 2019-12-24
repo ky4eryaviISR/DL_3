@@ -128,3 +128,5 @@ dmypy.json
 # Pyre type checker
 .pyre/
 .idea/
+rstr/
+rstr-2.2.6.dist-info/

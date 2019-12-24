@@ -1,4 +1,15 @@
-import rstr
+
+try:
+    import rstr
+except ImportError:
+    import subprocess
+    import os
+    import sys
+
+    cfolder = os.path.dirname(os.path.abspath(__file__))
+    cmd = [sys.executable, "-m", "pip", "install", "--target=" + cfolder, 'rstr']
+    subprocess.call(cmd)
+
 
 good = []
 bad = []

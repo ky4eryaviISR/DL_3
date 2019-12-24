@@ -1,26 +1,42 @@
-from torch import nn, Tensor, stack, cat, optim, LongTensor
+import random
+
+import torch
+from sklearn.model_selection import train_test_split
+from torch import nn, Tensor, stack, cat, optim, LongTensor, no_grad
 from torch import cuda
 
 device = 'cuda' if cuda.is_available() else 'cpu'
 
 
 class Acceptor(nn.Module):
-    def __init__(self, output_shape, emb_length, hidden_1, hidden_2, emb_vec):
+    def __init__(self, output_shape, emb_length, hidden_1, emb_vec_dim, hidden_2=5):
         super().__init__()
-        self.emb_vec_size = emb_vec
-        self.embedded = nn.Embedding(emb_length, emb_vec).to(device)
-        self.lstm = nn.LSTM(emb_vec, hidden_1)
-        self.hidden = nn.Linear(hidden_1, hidden_2)
-        self.output = nn.Linear(hidden_2, output_shape)
+        self.hidden_dim = hidden_1
+        self.emb_vec_size = emb_vec_dim
 
-        # Define tanh activation and softmax output
+        self.embedded = nn.Embedding(emb_length, emb_vec_dim)
+        self.input_hidden = self.init_hidden()
+
+        self.lstm = nn.LSTM(emb_vec_dim, hidden_1)
+
+        self.hidden = nn.Linear(hidden_1, hidden_2)
         self.tanh = nn.Tanh()
-        self.softmax = nn.Softmax(dim=1)
+        self.drop_1 = nn.Dropout()
+        self.output = nn.Linear(hidden_2, output_shape)
+        self.softmax = nn.LogSoftmax(dim=1)
+
+    def init_hidden(self):
+        # Before we've done anything, we dont have any hidden state.
+        # Refer to the Pytorch documentation to see exactly
+        # why they have this dimensionality.
+        # The axes semantics are (num_layers, minibatch_size, hidden_dim)
+        return (torch.zeros(1, 1, self.hidden_dim).to(device),
+                torch.zeros(1, 1, self.hidden_dim).to(device))
 
     def forward(self, x):
-        x = self.embedded(x).view(-1, self.emb_vec_size)
-        x, _ = self.lstm(x)
-        x = self.hidden(x)
+        x = self.embedded(x).view(x.shape[1], -1, self.emb_vec_size)
+        x, self.input_hidden = self.lstm(x, self.input_hidden)
+        x = self.hidden(x[-1])
         x = self.tanh(x)
         x = self.drop_1(x)
         x = self.output(x)
@@ -34,7 +50,7 @@ parser = {
     'b': 1,
     'c': 2,
     'd': 3,
-    'num': 4
+    'num': 4,
 }
 
 
@@ -43,37 +59,65 @@ def convert_to_numeric(l):
 
 
 def load_txt():
-    good = [LongTensor(convert_to_numeric(line)) for line in open('pos_examples').read().split('\n')]
-    bad = [LongTensor(convert_to_numeric(line) ) for line in open('neg_examples').read().split('\n')]
+    good = [LongTensor(convert_to_numeric(line)).unsqueeze(0) for line in open('pos_examples').read().split('\n')]
+    bad = [LongTensor(convert_to_numeric(line)).unsqueeze(0) for line in open('neg_examples').read().split('\n')]
     total = good + bad
-    label = LongTensor([1]*len(good)+[0]*len(bad))
+    label = LongTensor([[1]]*len(good)+[[0]]*len(bad))
     return total, label
 
 
-def train(model, data, label, lr=0.01, epoch=10):
-    # Sets model to TRAIN mode
-    model.train()
+def train_model(model, train, dev, lr=0.001, epoch=30):
+
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=lr)
-    loss_list = []
     for t in range(epoch):
-        for x, y in zip(data, label):
+        model.train()
+        random.shuffle(train)
+        for x, y in train:
+            model.input_hidden = (model.input_hidden[0].detach(), model.input_hidden[1].detach())
             x = x.to(device)
             y = y.to(device)
-            # Makes predictions
-            yhat = model([x])
-            # Computes loss
+            yhat = model(x)
             loss = criterion(yhat, y)
-            # Computes gradients
             loss.backward()
-            # Updates parameters and zeroes gradients
             optimizer.step()
             optimizer.zero_grad()
-            # Returns the loss
-            loss_list.append(loss.item())
+
+        acc_dev, loss_dev = evaluate(dev, model, criterion)
+        acc_tr, loss_tr = evaluate(train,model,criterion)
+        print(f"Train Acc:{acc_tr:.2f} Loss{loss_tr:.4f}  Acc Dev Acc: {acc_dev:.2f} Loss:{loss_dev:.4f} ")
 
 
-acceptor = Acceptor(2, len(parser), 5, 5, 50).to(device)
-data, label = load_txt()
-train(acceptor,data,label)
-print('x')
+def evaluate(loader, model, criterion):
+    loss_list = []
+    correct = 0
+    total = 0
+    model.eval()
+    with no_grad():
+        for x_batch, y_batch in loader:
+            x_batch = x_batch.to(device)
+            y_batch = y_batch.to(device)
+            outputs = model(x_batch)
+            loss_list.append(criterion(outputs, y_batch).item())
+
+            total += len(y_batch)
+            correct += (outputs.argmax(axis=1) == y_batch).sum().item()
+
+    return 100*correct/total, sum(loss_list)/total
+
+
+def split_shuffle_data(percent=0.8):
+    combined = list(zip(data, label))
+    random.shuffle(combined)
+    split = int(len(data)*percent)
+    return combined[:split], combined[split:]
+
+
+if __name__ == '__main__':
+    acceptor = Acceptor(2, emb_length=len(parser),
+                        hidden_1=10, emb_vec_dim=50).to(device)
+    data, label = load_txt()
+
+    train, test = split_shuffle_data()
+    train_model(acceptor, train, test,epoch=30)
+
