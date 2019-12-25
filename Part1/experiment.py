@@ -1,12 +1,14 @@
 import random
+import numpy as np
 
 import torch
-from sklearn.model_selection import train_test_split
-from torch import nn, Tensor, stack, cat, optim, LongTensor, no_grad
+from torch import nn
+from torch.optim import Adam
+
 from torch import cuda
 
 device = 'cuda' if cuda.is_available() else 'cpu'
-
+print()
 
 class Acceptor(nn.Module):
     def __init__(self, output_shape, emb_length, hidden_1, emb_vec_dim, hidden_2=5):
@@ -14,7 +16,10 @@ class Acceptor(nn.Module):
         self.hidden_dim = hidden_1
         self.emb_vec_size = emb_vec_dim
 
+        # embedding input
         self.embedded = nn.Embedding(emb_length, emb_vec_dim)
+
+        # additional input params(layer) into lstm
         self.input_hidden = self.init_hidden()
 
         self.lstm = nn.LSTM(emb_vec_dim, hidden_1)
@@ -22,6 +27,7 @@ class Acceptor(nn.Module):
         self.hidden = nn.Linear(hidden_1, hidden_2)
         self.tanh = nn.Tanh()
         self.drop_1 = nn.Dropout()
+
         self.output = nn.Linear(hidden_2, output_shape)
         self.softmax = nn.LogSoftmax(dim=1)
 
@@ -55,21 +61,24 @@ parser = {
 
 
 def convert_to_numeric(l):
+    # e.g: abcd454gfdsggfdfhg
     return [parser.get(word, 4) for word in l]
 
 
 def load_txt():
-    good = [LongTensor(convert_to_numeric(line)).unsqueeze(0) for line in open('pos_examples').read().split('\n')]
-    bad = [LongTensor(convert_to_numeric(line)).unsqueeze(0) for line in open('neg_examples').read().split('\n')]
+
+    good = [torch.LongTensor(convert_to_numeric(line)).unsqueeze(0) for line in open('pos_examples_new').read().split('\n')]
+    bad = [torch.LongTensor(convert_to_numeric(line)).unsqueeze(0) for line in open('neg_examples_new').read().split('\n')]
     total = good + bad
-    label = LongTensor([[1]]*len(good)+[[0]]*len(bad))
+    label = torch.LongTensor([[1]]*len(good)+[[0]]*len(bad))
+
     return total, label
 
 
 def train_model(model, train, dev, lr=0.001, epoch=30):
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=lr)
+    optimizer = Adam(model.parameters(), lr=lr)
     for t in range(epoch):
         model.train()
         random.shuffle(train)
@@ -93,7 +102,7 @@ def evaluate(loader, model, criterion):
     correct = 0
     total = 0
     model.eval()
-    with no_grad():
+    with torch.no_grad():
         for x_batch, y_batch in loader:
             x_batch = x_batch.to(device)
             y_batch = y_batch.to(device)
