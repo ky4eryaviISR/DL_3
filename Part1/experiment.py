@@ -1,12 +1,13 @@
+import enum
 import random
-import numpy as np
+import matplotlib.pyplot as plt
 
 import torch
 from torch import nn
 from torch.optim import Adam
 
 from torch import cuda
-
+MAX_SIZE = 50
 device = 'cuda' if cuda.is_available() else 'cpu'
 print()
 
@@ -26,7 +27,6 @@ class Acceptor(nn.Module):
 
         self.hidden = nn.Linear(hidden_1, hidden_2)
         self.tanh = nn.Tanh()
-        self.drop_1 = nn.Dropout()
 
         self.output = nn.Linear(hidden_2, output_shape)
         self.softmax = nn.LogSoftmax(dim=1)
@@ -40,15 +40,14 @@ class Acceptor(nn.Module):
                 torch.zeros(1, 1, self.hidden_dim).to(device))
 
     def forward(self, x):
-        x = self.embedded(x).view(x.shape[1], -1, self.emb_vec_size)
-        x, self.input_hidden = self.lstm(x, self.input_hidden)
-        x = self.hidden(x[-1])
-        x = self.tanh(x)
-        x = self.drop_1(x)
-        x = self.output(x)
-        x = self.softmax(x)
+        out = self.embedded(x).view(x.shape[1], -1, self.emb_vec_size)
+        out, self.input_hidden = self.lstm(out, self.input_hidden)
+        out = self.hidden(out.view(x.shape[1], 1, -1)[-1])
+        out = self.tanh(out)
+        out = self.output(out)
+        out = self.softmax(out)
 
-        return x
+        return out
 
 
 parser = {
@@ -62,6 +61,7 @@ parser = {
 
 def convert_to_numeric(l):
     # e.g: abcd454gfdsggfdfhg
+    vec = [parser.get(word, 4) for word in l]
     return [parser.get(word, 4) for word in l]
 
 
@@ -74,9 +74,18 @@ def load_txt():
 
     return total, label
 
+class PRINT(enum.Enum):
+    TRAIN_ACC = 1
+    TRAIN_LSS = 2
+    TEST_LSS = 3
+    TEST_ACC = 4
 
-def train_model(model, train, dev, lr=0.001, epoch=30):
+def train_model(model, train, dev, lr=0.01, epoch=30):
 
+    to_print = {PRINT.TEST_ACC: [],
+                PRINT.TEST_LSS: [],
+                PRINT.TRAIN_ACC:  [],
+                PRINT.TRAIN_LSS:  []}
     criterion = nn.CrossEntropyLoss()
     optimizer = Adam(model.parameters(), lr=lr)
     for t in range(epoch):
@@ -91,10 +100,29 @@ def train_model(model, train, dev, lr=0.001, epoch=30):
             loss.backward()
             optimizer.step()
             optimizer.zero_grad()
-
         acc_dev, loss_dev = evaluate(dev, model, criterion)
         acc_tr, loss_tr = evaluate(train,model,criterion)
-        print(f"Train Acc:{acc_tr:.2f} Loss{loss_tr:.4f}  Acc Dev Acc: {acc_dev:.2f} Loss:{loss_dev:.4f} ")
+
+        to_print[PRINT.TRAIN_ACC].append(acc_tr)
+        to_print[PRINT.TRAIN_LSS].append(loss_tr)
+        to_print[PRINT.TEST_ACC].append(acc_dev)
+        to_print[PRINT.TEST_LSS].append(loss_dev)
+        print(f"Epoch:{t+1} Train Acc:{acc_tr:.2f} Loss:{loss_tr:.4f}  Acc Dev Acc: {acc_dev:.2f} Loss:{loss_dev:.4f} ")
+        if acc_dev == 100:
+            print("Stop training reached the maximum accuracy on the train")
+            break
+    save_graph(to_print[PRINT.TRAIN_ACC],to_print[PRINT.TEST_ACC],'Acccracy')
+    save_graph(to_print[PRINT.TRAIN_LSS],to_print[PRINT.TEST_LSS],'Loss')
+    return acceptor
+
+def save_graph(train,test,y_axis):
+    plt.figure()
+    plt.plot(train,color='r', label='train')
+    plt.plot(test, color='g', label='test')
+    plt.xlabel('Epochs')
+    plt.legend(loc="upper left")
+    plt.ylabel(y_axis)
+    plt.savefig(y_axis+'.png')
 
 
 def evaluate(loader, model, criterion):
@@ -124,9 +152,17 @@ def split_shuffle_data(percent=0.8):
 
 if __name__ == '__main__':
     acceptor = Acceptor(2, emb_length=len(parser),
-                        hidden_1=10, emb_vec_dim=50).to(device)
+                        emb_vec_dim=len(parser), hidden_1=8,  hidden_2=8).to(device)
     data, label = load_txt()
 
     train, test = split_shuffle_data()
-    train_model(acceptor, train, test,epoch=30)
+    acceptor = train_model(acceptor, train, test, epoch=100, lr=0.001)
+    possible_words = ['1a9b19c9d9', '1a9b1d99999999999999999999999999999999999999999999999999999999999'
+                                    '99999999999999999999999999999999999999999999999999999999999999999'
+                                    '9999999999999999999999999999999999999999999999999999999999999c9']
+    #input_failures = [torch.LongTensor(convert_to_numeric(word)).unsqueeze(0) for word in possible_words]
+    #print(acceptor(input_failures))
+
+
+
 
