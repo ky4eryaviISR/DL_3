@@ -58,5 +58,5 @@ class BidirectionRnn(nn.Module):
         # (4) Linear layer to tag space
         output = self.hidden2tag(rnn_out.view(len(sentence), -1))
         # Softmax
-        probs = self.softmax(output, dim=1)
+        probs = torch.softmax(output, dim=1)
         return probs

@@ -31,6 +31,7 @@ def main(argv):
     train_file = root / "train"
     dev_file = root / "dev"
     test_file = root / "test"
+
     print(time.time() - start_time)
 
 
