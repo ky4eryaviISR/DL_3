@@ -1,6 +1,5 @@
 
 try:
-    #import rstr
     from xeger import Xeger
 except ImportError:
     import subprocess
@@ -15,12 +14,12 @@ except ImportError:
 
 good = []
 bad = []
-x = Xeger(limit=20)
+x = Xeger(limit=15)
 for i in range(500):
     good.append(x.xeger(r'[1-9]+a+[1-9]+b+[1-9]+c+[1-9]+d+[1-9]+'))
     bad.append(x.xeger(r'[1-9]+a+[1-9]+c+[1-9]+b+[1-9]+d+[1-9]+'))
 
-with open('pos_examples_new', 'w') as f:
+with open('pos_examples', 'w') as f:
     f.write('\n'.join(good))
-with open('neg_examples_new', 'w') as f:
+with open('neg_examples', 'w') as f:
     f.write('\n'.join(bad))
