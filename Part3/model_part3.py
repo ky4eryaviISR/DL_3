@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.autograd import Variable
 from torch import optim
 
@@ -17,21 +18,23 @@ class BidirectionRnn(nn.Module):
         super(BidirectionRnn, self).__init__()
         # GPU device
         self.device = device
+
         # Dimensions
         self.hidden_dim = hidden_dim
         self.embedding_dim = embedding_dim
-        self.tagset_size = tagset_size
+        # self.tagset_size = tagset_size
+
         # Representation
         self.embedding = nn.Embedding(vocab_size, embedding_dim)
-        # RNN - BidirectionRnn with 2 layers
+
         # Initialize hidden state in RNN
         self.hidden = self.init_hidden()
+
+        # RNN - BidirectionRnn with 2 layers
         self.num_direction = 2 if bidirectional else 1
         self.rnn = nn.LSTM(embedding_dim, hidden_dim, bidirectional=bidirectional, num_layers=2, dropout=0.5)
         # Linear layer
-        self.hidden2tag = nn.Linear(hidden_dim * 2, tagset_size)
-        self.softmax = nn.LogSoftmax(dim=1)
-
+        self.hidden2out = nn.Linear(hidden_dim * 2, tagset_size)
 
 
     def init_hidden(self):
@@ -46,11 +49,13 @@ class BidirectionRnn(nn.Module):
         """
         The process of the model prediction
         """
-        # Embed the sequences
-        embeds = self.embedding(sentence)
-        # Feed into the RNN
+        # (1) input layer
+        inputs = sentence
+        # (2) embedding layer - Embed the sequences
+        embeds = self.embedding(inputs)
+        # (3) Feed into the RNN
         rnn_out, self.hidden = self.rnn(embeds.view(len(sentence), 1, -1), self.hidden)
-        # Linear layer to tag space
+        # (4) Linear layer to tag space
         output = self.hidden2tag(rnn_out.view(len(sentence), -1))
         # Softmax
         probs = self.softmax(output, dim=1)
