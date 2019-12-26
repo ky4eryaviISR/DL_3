@@ -53,18 +53,22 @@ class Acceptor(nn.Module):
 
 
 parser = {
-    'a': 0,
-    'b': 1,
-    'c': 2,
-    'd': 3,
-    'num': 4,
+    '0': 0,
+    '1': 1,
+    '2': 2,
+    '3': 3,
+    '4': 4,
+    '5': 5,
+    '6': 6,
+    '7': 7,
+    '8': 8,
+    '9': 9,
 }
 
 
 def convert_to_numeric(l):
     # e.g: abcd454gfdsggfdfhg
-    vec = [parser.get(word, 4) for word in l]
-    return [parser.get(word, 4) for word in l]
+    return [parser[word] for word in l]
 
 
 def load_txt(pos,neg):
