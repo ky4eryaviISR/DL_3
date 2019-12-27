@@ -70,16 +70,24 @@ class CharDataset(PyTorchDataset):
 
     def __init__(self, path):
         super().__init__(path)
+
         X, y = PyTorchDataset.load_file(path)
-        print(X)
-        i = 0
+        char = CharDataset.preprocessing_char(X)
+        target = [self.target_to_num.get(item) for item in y]
+        print(target[:2])
+        print(char[:2])
+
 
     @staticmethod
     def preprocessing_char(X):
-        for word in X:
-            for char in word:
-                print(char)
 
+        char_vocab = set([char for word in X for char in word])
+        char_vocab.add('UNK')
+        char_to_num = dict(zip(char_vocab, range(len(char_vocab))))
+
+        char_list = [[char_to_num.get(char, 'UNK') for char in word] for word in X]
+
+        return char_list
 
 
 
@@ -92,7 +100,7 @@ if __name__ == '__main__':
 
     dataloader_train = DataLoader(dataset, batch_size=50, shuffle=True, collate_fn=pad_collate)
 
-    for i, batch in enumerate(dataloader_train):
-        data, labels = batch
-        print(data)
-        #print(labels.shape)
+    # for i, batch in enumerate(dataloader_train):
+    #     data, labels = batch
+    #     print(data)
+    #     #print(labels.shape)

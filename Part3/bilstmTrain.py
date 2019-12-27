@@ -6,8 +6,10 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader
 
 # ToDO: change when submit
-from Part3.dataloader import PyTorchDataset, pad_collate
-from utils import to_print, PRINT, save_graph
+# from Part3.dataloader import PyTorchDataset, pad_collate
+# from utils import to_print, PRINT, save_graph
+from DL_3.Part3.dataloader import PyTorchDataset, pad_collate
+from DL_3.utils import to_print, PRINT
 
 BATCH_SIZE = 50
 
@@ -141,6 +143,9 @@ if __name__ == '__main__':
     model_file = argv[3]
     corpus = argv[4]
     test_file = argv[5]
+    train_file = r'/home/vova/PycharmProjects/deep_exe3/DL_3/Part3/ner/train'
+    # train_file = r'/home/vova/PycharmProjects/deep_exe3/DL_3/Part3/ner/train'
+    test_file = r'/home/vova/PycharmProjects/deep_exe3/DL_3/Part3/ner/dev'
     train_dataset = PyTorchDataset(train_file)
     test_dataset = PyTorchDataset(test_file)
     train_set = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=pad_collate)
