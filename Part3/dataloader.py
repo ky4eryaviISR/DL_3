@@ -45,7 +45,7 @@ class PyTorchDataset(torch.utils.data.Dataset):
         x, y = self.sequences[idx], self.targets[idx]
 
         data = torch.tensor(x, dtype=torch.long)
-        target = torch.tensor(y)
+        target = torch.tensor(y, dtype=torch.long)
         return (data, target)
 
     def __len__(self):
@@ -55,19 +55,18 @@ class PyTorchDataset(torch.utils.data.Dataset):
     def load_file(path):
         data, target = np.genfromtxt(path, dtype='U20', unpack=True)
 
-        words = list(zip(*(data, target)))
-        word_dict = Counter(words)
+        word_dict = Counter(data)
         min_threshold = 3
 
         newDict = dict(filter(lambda elem: elem[1] > min_threshold, word_dict.items()))
-        keys, values = list(zip(*(newDict.items())))
+        keys = [(word if word in newDict else 'UUUNNNKKK', target) for word, target in zip(data, target)]
         data, target = list(zip(*(keys)))
-        return data, target
+        return np.array(data), np.array(target)
 
     @staticmethod
     def create_sentences(data, target, word_to_num, target_to_num):
         ind = list(np.where(data == '.')[0] + 1)
-        arr_per_sequences = np.split(data, ind)
+        arr_per_sequences = np.split(data, ind)[:-1]
         target_per_sequences = np.split(target, ind)
 
         sentences = [[word_to_num.get(word, word_to_num['UUUNNNKKK']) for word in seq] for seq in arr_per_sequences]
@@ -104,12 +103,12 @@ if __name__ == '__main__':
     # Must change
     #root = Path('DL_3/Part3/{}'.format(sys.argv[1]))
     train_file = sys.argv[1]
-    train_file = r'/home/vova/PycharmProjects/deep_exe3/DL_3/Part3/ner/train'
+    # train_file = r'/home/vova/PycharmProjects/deep_exe3/DL_3/Part3/ner/train'
     dataset = PyTorchDataset(train_file)
 
     dataloader_train = DataLoader(dataset, batch_size=50, shuffle=True, collate_fn=pad_collate)
 
-    # for i, batch in enumerate(dataloader_train):
-    #     data, labels = batch
-    #     print(data)
-    #     #print(labels.shape)
+    for i, batch in enumerate(dataloader_train):
+        data, labels = batch
+        # print(data)
+        print(data.shape)
