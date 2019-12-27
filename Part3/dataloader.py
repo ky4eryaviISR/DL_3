@@ -1,5 +1,6 @@
 import torch
 from torch.utils.data import Dataset
+from torch.utils.data import DataLoader
 from pathlib import Path
 import sys
 
@@ -44,47 +45,71 @@ class PyTorchDataset(torch.utils.data.Dataset):
     """
     def __init__(self, path):
         X, y = PyTorchDataset.load_file(path)
-        sequences, targets = PyTorchDataset.create_sentences(X, y)
 
         vocab = np.unique(X)
         unique_target = np.unique(y)
 
+        word_to_num = dict(zip(vocab, range(len(vocab))))
+        target_to_num = dict(zip(unique_target, range(len(unique_target))))
+
+        self.sequences, self.targets = PyTorchDataset.create_sentences(X, y, word_to_num, target_to_num)
+        print(self.sequences[:2])
+        print(self.targets[:2])
 
 
     def __getitem__(self, idx):
-        # x, y = self.X[idx], self.Y[idx]
-        # x = minmax_scale(x, self.X_min, self.X_max, feature_range=(0.01, 0.99))
-        # y = scale(y, self.Y_mean, self.Y_scale)
-        # l = torch.from_numpy(self.lengths[idx])
-        # x, y = torch.from_numpy(x), torch.from_numpy(y)
-        return x, y, l
+        x, y = self.sequences[idx], self.targets[idx]
+
+
+        data = torch.tensor(x, dtype=torch.long)
+        target = torch.tensor(y)
+        return data, target
 
     def __len__(self):
-        return len(self.X)
+        return len(self.sequences)
 
     @staticmethod
     def load_file(path):
         data, target = np.genfromtxt(path, dtype='U20', unpack=True)
-
         return data, target
 
     @staticmethod
-    def create_sentences(data, target):
+    def create_sentences(data, target, word_to_num, target_to_num):
         ind = list(np.where(data == '.')[0] + 1)
         arr_per_sequences = np.split(data, ind)
-        sentences = [' '.join(seq) for seq in arr_per_sequences]
-
         target_per_sequences = np.split(target, ind)
-        targets = [' '.join(seq) for seq in target_per_sequences]
-        print(sentences[:2])
-        print(targets[:2])
+
+        sentences = []
+        for seq in arr_per_sequences:
+            temp = []
+            for word in seq:
+                temp.append(word_to_num.get(word))
+            sentences.append(temp)
+
+        targets = []
+        for seq in target_per_sequences:
+            temp = []
+            for word in seq:
+                temp.append(target_to_num.get(word))
+            targets.append(temp)
+
+        # sentences = [' '.join(word_to_num.get(word)) for seq in arr_per_sequences for word in seq]
+        #
+        # target_per_sequences = np.split(target, ind)
+        # targets = [' '.join(target_to_num.get(tar)) for seq in target_per_sequences for tar in target]
         return sentences, targets
 
 if __name__ == '__main__':
-    #Must change
+    # Must change
     root = Path('DL_3/Part3/{}'.format(sys.argv[1]))
 
     # Path to data files
     train_file = root / "train"
 
-    data = PyTorchDataset('/home/vova/PycharmProjects/deep_exe3/DL_3/Part3/pos/train')
+    dataset = PyTorchDataset('/home/vova/PycharmProjects/deep_exe3/DL_3/Part3/ner/train')
+
+    dataloader_train = DataLoader(dataset, batch_size=1, shuffle=True)
+
+    for i, batch in enumerate(dataloader_train):
+        data, labels = batch
+        print(data, labels)
