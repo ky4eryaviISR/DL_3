@@ -4,45 +4,12 @@ from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pad_sequence
 from pathlib import Path
 import sys
-
-# class CustomerDataSet(Dataset):
-#     def __init__(self, path, encoded_words=None, encoded_labels=None):
-#         pre = Preprocessing(path)
-#
-#         if not encoded_words:
-#             vocab, labels, encoded_words, encoded_labels, encode_num_to_labels = pre.get_vocab_and_labels()
-#             tokens = pre.load_data()
-#             contexts = pre.get_contexts(tokens, encoded_words, encoded_labels)
-#
-#             self.sample, self.label = list(zip(*contexts))
-#             self.vocab = vocab
-#             self.labels = labels
-#             self.encoded_words = encoded_words
-#             self.encoded_labels= encoded_labels
-#             self.encode_num_to_label = encode_num_to_labels
-#         else:
-#             encoded_words = encoded_words
-#             encoded_labels = encoded_labels
-#             tokens = pre.load_data()
-#             contexts = pre.get_contexts(tokens, encoded_words, encoded_labels)
-#             self.sample, self.label = list(zip(*contexts))
-#
-#     def __getitem__(self, index):
-#
-#         label = torch.tensor(self.label[index], dtype=torch.long)
-#         sample = torch.tensor(self.sample[index])
-#         return sample, label
-#
-#     def __len__(self):
-#         return len(self.sample)
-
 import numpy as np
+from collections import Counter
 
 
 def pad_collate(batch):
   (xx, yy) = zip(*batch)
-  # x_lens = [len(x) for x in xx]
-  # y_lens = [len(y) for y in yy]
 
   xx_pad = pad_sequence(xx, batch_first=True, padding_value=0)
   yy_pad = pad_sequence(yy, batch_first=True, padding_value=0)
@@ -73,8 +40,6 @@ class PyTorchDataset(torch.utils.data.Dataset):
         self.sequences, self.targets = PyTorchDataset.create_sentences(X, y,
                                                                        PyTorchDataset.word_to_num,
                                                                        PyTorchDataset.target_to_num)
-        # print(self.sequences[:2])
-        # print(self.targets[:2])
 
     def __getitem__(self, idx):
         x, y = self.sequences[idx], self.targets[idx]
@@ -89,6 +54,14 @@ class PyTorchDataset(torch.utils.data.Dataset):
     @staticmethod
     def load_file(path):
         data, target = np.genfromtxt(path, dtype='U20', unpack=True)
+
+        words = list(zip(*(data, target)))
+        word_dict = Counter(words)
+        min_threshold = 3
+
+        newDict = dict(filter(lambda elem: elem[1] > min_threshold, word_dict.items()))
+        keys, values = list(zip(*(newDict.items())))
+        data, target = list(zip(*(keys)))
         return data, target
 
     @staticmethod
@@ -102,16 +75,41 @@ class PyTorchDataset(torch.utils.data.Dataset):
         return sentences, targets
 
 
+class CharDataset(PyTorchDataset):
+
+    def __init__(self, path):
+        super().__init__(path)
+
+        X, y = PyTorchDataset.load_file(path)
+        char = CharDataset.preprocessing_char(X)
+        target = [self.target_to_num.get(item) for item in y]
+        print(target[:2])
+        print(char[:2])
+
+
+    @staticmethod
+    def preprocessing_char(X):
+
+        char_vocab = set([char for word in X for char in word])
+        char_vocab.add('UNK')
+        char_to_num = dict(zip(char_vocab, range(len(char_vocab))))
+
+        char_list = [[char_to_num.get(char, 'UNK') for char in word] for word in X]
+
+        return char_list
+
+
+
 if __name__ == '__main__':
     # Must change
     #root = Path('DL_3/Part3/{}'.format(sys.argv[1]))
     train_file = sys.argv[1]
-
+    train_file = r'/home/vova/PycharmProjects/deep_exe3/DL_3/Part3/ner/train'
     dataset = PyTorchDataset(train_file)
 
     dataloader_train = DataLoader(dataset, batch_size=50, shuffle=True, collate_fn=pad_collate)
 
-    for i, batch in enumerate(dataloader_train):
-        data, labels = batch
-        print(data)
-        #print(labels.shape)
+    # for i, batch in enumerate(dataloader_train):
+    #     data, labels = batch
+    #     print(data)
+    #     #print(labels.shape)
