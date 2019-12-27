@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 from Part3.dataloader import PyTorchDataset, pad_collate
 from utils import to_print, PRINT, save_graph
 
-BATCH_SIZE = 50
+BATCH_SIZE = 25
 
 device = 'cuda' if cuda.is_available() else 'cpu'
 print("Graphical device test: {}".format(torch.cuda.is_available()))
@@ -74,9 +74,11 @@ def train(model, train_loader, val_loader, lr=0.01, epoch=10, is_ner=False):
     criterion = nn.CrossEntropyLoss()
     optimizer = Adam(model.parameters(), lr=lr)
     loss_list = []
+    passed_sen = 0
     for t in range(epoch):
-        model.train()
         for x_batch, y_batch in train_loader:
+            model.train()
+            passed_sen += int(x_batch.shape[0])
             model.hidden = (model.hidden[0].detach(),
                                   model.hidden[1].detach())
             model.hidden = model.init_hidden(x_batch.shape[0])
@@ -93,15 +95,15 @@ def train(model, train_loader, val_loader, lr=0.01, epoch=10, is_ner=False):
             optimizer.zero_grad()
             # Returns the loss
             loss_list.append(loss.item())
-
-        acc_dev, loss_dev = evaluate(val_loader, model, criterion, is_ner)
-        acc_tr, loss_tr = evaluate(train_loader, model, criterion, is_ner)
-        to_print[PRINT.TRAIN_ACC].append(acc_tr)
-        to_print[PRINT.TRAIN_LSS].append(loss_tr)
-        to_print[PRINT.TEST_ACC].append(acc_dev)
-        to_print[PRINT.TEST_LSS].append(loss_dev)
-        print(f"Epoch:{t+1} Train Acc:{acc_tr:.2f} Loss:{loss_tr:.8f} "
-              f"Acc Dev Acc: {acc_dev:.2f} Loss:{loss_dev:.8f} ")
+            if passed_sen % 500 == 0:
+                acc_dev, loss_dev = evaluate(val_loader, model, criterion, is_ner)
+                acc_tr, loss_tr = evaluate(train_loader, model, criterion, is_ner)
+                to_print[PRINT.TRAIN_ACC].append(acc_tr)
+                to_print[PRINT.TRAIN_LSS].append(loss_tr)
+                to_print[PRINT.TEST_ACC].append(acc_dev)
+                to_print[PRINT.TEST_LSS].append(loss_dev)
+                print(f"Epoch:{t+1} Train Acc:{acc_tr:.2f} Loss:{loss_tr:.8f} "
+                      f"Acc Dev Acc: {acc_dev:.2f} Loss:{loss_dev:.8f} ")
 
     save_graph(to_print[PRINT.TRAIN_ACC], to_print[PRINT.TEST_ACC], 'Accuracy')
     save_graph(to_print[PRINT.TRAIN_LSS], to_print[PRINT.TEST_LSS], 'Loss')
@@ -121,15 +123,15 @@ def evaluate(loader, model, criterion, is_ner):
             outputs = model(x_batch)
             loss_list.append(criterion(outputs, y_batch).item())
             if is_ner:
-                for y_real, yhat in zip(y_batch, outputs.argmax(axis=1)):
-                    y_real, yhat = int(y_real), int(yhat)
-                    if PyTorchDataset.num_to_target[y_real] == 'O' and yhat == y_real:
-                        continue
-                    if yhat == y_real:
-                        correct += 1
-                    total += 1
+                for y_real, yhat in zip(y_batch.tolist(), outputs.argmax(axis=1).tolist()):
+                    for i in range(len(y_real)):
+                        if PyTorchDataset.num_to_target[y_real[i]] == 'O' and yhat[i] == y_real[i]:
+                            continue
+                        if yhat[i] == y_real[i]:
+                            correct += 1
+                        total += 1
             else:
-                total += len(y_batch)
+                total += y_batch.shape[0]*y_batch.shape[1]
                 correct += (outputs.argmax(axis=1) == y_batch).sum().item()
 
     return 100*correct/total, sum(loss_list)/total
@@ -139,7 +141,7 @@ if __name__ == '__main__':
     repr = argv[1]
     train_file = argv[2]
     model_file = argv[3]
-    corpus = argv[4]
+    is_ner = True if argv[4] == 'ner' else False
     test_file = argv[5]
     train_dataset = PyTorchDataset(train_file)
     test_dataset = PyTorchDataset(test_file)
@@ -147,9 +149,9 @@ if __name__ == '__main__':
     voc_size = len(PyTorchDataset.word_to_num)
     tag_size = len(PyTorchDataset.target_to_num)
     bi_rnn = BidirectionRnn(vocab_size=voc_size,
-                            embedding_dim=25,
-                            hidden_dim=50,
+                            embedding_dim=50,
+                            hidden_dim=30,
                             tagset_size=tag_size).to(device)
     test_set = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=pad_collate)
-    train(bi_rnn, train_set, test_set, lr=0.01, epoch=5, is_ner=False)
+    train(bi_rnn, train_set, test_set, lr=0.001, epoch=5, is_ner=False)
 
