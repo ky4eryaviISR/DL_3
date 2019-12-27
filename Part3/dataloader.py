@@ -66,7 +66,7 @@ class PyTorchDataset(torch.utils.data.Dataset):
     @staticmethod
     def create_sentences(data, target, word_to_num, target_to_num):
         ind = list(np.where(data == '.')[0] + 1)
-        arr_per_sequences = np.split(data, ind)
+        arr_per_sequences = np.split(data, ind)[:-1]
         target_per_sequences = np.split(target, ind)
 
         sentences = [[word_to_num.get(word, word_to_num['UUUNNNKKK']) for word in seq] for seq in arr_per_sequences]
@@ -103,12 +103,12 @@ if __name__ == '__main__':
     # Must change
     #root = Path('DL_3/Part3/{}'.format(sys.argv[1]))
     train_file = sys.argv[1]
-    train_file = r'/home/vova/PycharmProjects/deep_exe3/DL_3/Part3/ner/train'
+    # train_file = r'/home/vova/PycharmProjects/deep_exe3/DL_3/Part3/ner/train'
     dataset = PyTorchDataset(train_file)
 
     dataloader_train = DataLoader(dataset, batch_size=50, shuffle=True, collate_fn=pad_collate)
 
-    # for i, batch in enumerate(dataloader_train):
-    #     data, labels = batch
-    #     print(data)
-    #     #print(labels.shape)
+    for i, batch in enumerate(dataloader_train):
+        data, labels = batch
+        # print(data)
+        print(data.shape)
