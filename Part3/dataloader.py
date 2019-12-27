@@ -1,6 +1,7 @@
 import torch
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
+from torch.nn.utils.rnn import pad_sequence
 from pathlib import Path
 import sys
 
@@ -36,6 +37,18 @@ import sys
 #         return len(self.sample)
 
 import numpy as np
+
+
+def pad_collate(batch):
+  (xx, yy) = zip(*batch)
+  # x_lens = [len(x) for x in xx]
+  # y_lens = [len(y) for y in yy]
+
+  xx_pad = pad_sequence(xx, batch_first=True, padding_value=0)
+  yy_pad = pad_sequence(yy, batch_first=True, padding_value=0)
+
+  return xx_pad, yy_pad
+
 class PyTorchDataset(torch.utils.data.Dataset):
     """Thin dataset wrapper for pytorch
 
@@ -53,8 +66,8 @@ class PyTorchDataset(torch.utils.data.Dataset):
         target_to_num = dict(zip(unique_target, range(len(unique_target))))
 
         self.sequences, self.targets = PyTorchDataset.create_sentences(X, y, word_to_num, target_to_num)
-        print(self.sequences[:2])
-        print(self.targets[:2])
+        # print(self.sequences[:2])
+        # print(self.targets[:2])
 
 
     def __getitem__(self, idx):
@@ -63,7 +76,8 @@ class PyTorchDataset(torch.utils.data.Dataset):
 
         data = torch.tensor(x, dtype=torch.long)
         target = torch.tensor(y)
-        return data, target
+        return (data, target)
+
 
     def __len__(self):
         return len(self.sequences)
@@ -93,6 +107,7 @@ class PyTorchDataset(torch.utils.data.Dataset):
                 temp.append(target_to_num.get(word))
             targets.append(temp)
 
+
         # sentences = [' '.join(word_to_num.get(word)) for seq in arr_per_sequences for word in seq]
         #
         # target_per_sequences = np.split(target, ind)
@@ -108,8 +123,9 @@ if __name__ == '__main__':
 
     dataset = PyTorchDataset('/home/vova/PycharmProjects/deep_exe3/DL_3/Part3/ner/train')
 
-    dataloader_train = DataLoader(dataset, batch_size=1, shuffle=True)
+    dataloader_train = DataLoader(dataset, batch_size=50, shuffle=True, collate_fn=pad_collate)
 
     for i, batch in enumerate(dataloader_train):
         data, labels = batch
-        print(data, labels)
+        print(data)
+        #print(labels.shape)
