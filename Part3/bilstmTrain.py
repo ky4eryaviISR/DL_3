@@ -6,12 +6,12 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader
 
 # ToDO: change when submit
-# from Part3.dataloader import PyTorchDataset, pad_collate
-# from utils import to_print, PRINT, save_graph
-from DL_3.Part3.dataloader import PyTorchDataset, pad_collate
-from DL_3.utils import to_print, PRINT
+from Part3.dataloader import PyTorchDataset, pad_collate
+from utils import to_print, PRINT, save_graph
+# from DL_3.Part3.dataloader import PyTorchDataset, pad_collate
+# from DL_3.utils import to_print, PRINT
 
-BATCH_SIZE = 25
+BATCH_SIZE = 50
 
 device = 'cuda' if cuda.is_available() else 'cpu'
 print("Graphical device test: {}".format(torch.cuda.is_available()))
@@ -41,7 +41,7 @@ class BidirectionRnn(nn.Module):
 
         # RNN - BidirectionRnn with 2 layers
         self.num_direction = 2 if bidirectional else 1
-        self.rnn = nn.LSTM(embedding_dim, hidden_dim, bidirectional=bidirectional, num_layers=2, dropout=0.5)
+        self.rnn = nn.LSTM(embedding_dim, hidden_dim, bidirectional=bidirectional, num_layers=2, dropout=0.3)
         # Linear layer
         self.hidden2out = nn.Linear(hidden_dim * 2, tagset_size)
         self.softmax = nn.Softmax(dim=1)
@@ -145,18 +145,18 @@ if __name__ == '__main__':
     model_file = argv[3]
     is_ner = True if argv[4] == 'ner' else False
     test_file = argv[5]
-    train_file = r'/home/vova/PycharmProjects/deep_exe3/DL_3/Part3/ner/train'
     # train_file = r'/home/vova/PycharmProjects/deep_exe3/DL_3/Part3/ner/train'
-    test_file = r'/home/vova/PycharmProjects/deep_exe3/DL_3/Part3/ner/dev'
+    # train_file = r'/home/vova/PycharmProjects/deep_exe3/DL_3/Part3/ner/train'
+    # test_file = r'/home/vova/PycharmProjects/deep_exe3/DL_3/Part3/ner/dev'
     train_dataset = PyTorchDataset(train_file)
     test_dataset = PyTorchDataset(test_file)
     train_set = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=pad_collate)
     voc_size = len(PyTorchDataset.word_to_num)
     tag_size = len(PyTorchDataset.target_to_num)
     bi_rnn = BidirectionRnn(vocab_size=voc_size,
-                            embedding_dim=50,
+                            embedding_dim=30,
                             hidden_dim=30,
                             tagset_size=tag_size).to(device)
     test_set = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=pad_collate)
-    train(bi_rnn, train_set, test_set, lr=0.001, epoch=5, is_ner=False)
+    train(bi_rnn, train_set, test_set, lr=0.01, epoch=5, is_ner=False)
 

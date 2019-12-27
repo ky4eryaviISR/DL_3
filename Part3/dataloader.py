@@ -45,7 +45,7 @@ class PyTorchDataset(torch.utils.data.Dataset):
         x, y = self.sequences[idx], self.targets[idx]
 
         data = torch.tensor(x, dtype=torch.long)
-        target = torch.tensor(y)
+        target = torch.tensor(y, dtype=torch.long)
         return (data, target)
 
     def __len__(self):
@@ -55,14 +55,13 @@ class PyTorchDataset(torch.utils.data.Dataset):
     def load_file(path):
         data, target = np.genfromtxt(path, dtype='U20', unpack=True)
 
-        words = list(zip(*(data, target)))
-        word_dict = Counter(words)
+        word_dict = Counter(data)
         min_threshold = 3
 
         newDict = dict(filter(lambda elem: elem[1] > min_threshold, word_dict.items()))
-        keys, values = list(zip(*(newDict.items())))
+        keys = [(word if word in newDict else 'UUUNNNKKK', target) for word, target in zip(data, target)]
         data, target = list(zip(*(keys)))
-        return data, target
+        return np.array(data), np.array(target)
 
     @staticmethod
     def create_sentences(data, target, word_to_num, target_to_num):
