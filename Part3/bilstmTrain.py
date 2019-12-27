@@ -66,7 +66,7 @@ class BidirectionRnn(nn.Module):
         output = self.hidden2out(rnn_out.view(sentence.shape[0], sentence.shape[1], -1))
         # Softmax
         probs = self.softmax(output)
-        probs.view(sentence.shape[0], self.tagset_size, -1)
+        probs = probs.view(sentence.shape[0], self.tagset_size, -1)
         return probs
 
 
@@ -76,22 +76,14 @@ def train(model, train_loader, val_loader, lr=0.01, epoch=10, is_ner=False):
     loss_list = []
     for t in range(epoch):
         model.train()
-        #print(f"EPOCH: {t}")
-        acc_batch = 0
-        time_2_print = 50000
         for x_batch, y_batch in train_loader:
             model.hidden = (model.hidden[0].detach(),
                                   model.hidden[1].detach())
             model.hidden = model.init_hidden(x_batch.shape[0])
-            #if acc_batch > time_2_print:
-            #    time_2_print += 50000
-            #print(f"BATCH: {acc_batch}/{len(data)}")
-            #acc_batch += batch_size
             x_batch = x_batch.to(device)
             y_batch = y_batch.to(device)
             # Makes predictions
             yhat = model(x_batch)
-            yhat = yhat.view(x_batch.shape[0], 5, -1)
             # Computes loss
             loss = criterion(yhat, y_batch)
             # Computes gradients
@@ -102,23 +94,21 @@ def train(model, train_loader, val_loader, lr=0.01, epoch=10, is_ner=False):
             # Returns the loss
             loss_list.append(loss.item())
 
-        # evaluate(train_loader, model, criterion, "train", isNer)
-        #if epoch == 0:
-        acc_dev, loss_dev = evaluate(val_loader, model, criterion, "validation", is_ner)
-        acc_tr, loss_tr = evaluate(train_loader, model, criterion, "train", is_ner)
+        acc_dev, loss_dev = evaluate(val_loader, model, criterion, is_ner)
+        acc_tr, loss_tr = evaluate(train_loader, model, criterion, is_ner)
         to_print[PRINT.TRAIN_ACC].append(acc_tr)
         to_print[PRINT.TRAIN_LSS].append(loss_tr)
         to_print[PRINT.TEST_ACC].append(acc_dev)
         to_print[PRINT.TEST_LSS].append(loss_dev)
-        print(f"Epoch:{t+1} Train Acc:{acc_tr:.2f} Loss:{loss_tr:.4f} "
-              f"Acc Dev Acc: {acc_dev:.2f} Loss:{loss_dev:.4f} ")
+        print(f"Epoch:{t+1} Train Acc:{acc_tr:.2f} Loss:{loss_tr:.8f} "
+              f"Acc Dev Acc: {acc_dev:.2f} Loss:{loss_dev:.8f} ")
 
     save_graph(to_print[PRINT.TRAIN_ACC], to_print[PRINT.TEST_ACC], 'Accuracy')
     save_graph(to_print[PRINT.TRAIN_LSS], to_print[PRINT.TEST_LSS], 'Loss')
     return model
 
 
-def evaluate(loader, model, criterion, set_name, is_ner):
+def evaluate(loader, model, criterion, is_ner):
     loss_list = []
     correct = 0
     total = 0
@@ -157,9 +147,9 @@ if __name__ == '__main__':
     voc_size = len(PyTorchDataset.word_to_num)
     tag_size = len(PyTorchDataset.target_to_num)
     bi_rnn = BidirectionRnn(vocab_size=voc_size,
-                            embedding_dim=50,
-                            hidden_dim=10,
+                            embedding_dim=25,
+                            hidden_dim=50,
                             tagset_size=tag_size).to(device)
     test_set = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=pad_collate)
-    train(bi_rnn, train_set, test_set, lr=0.001, epoch=10, is_ner=False)
+    train(bi_rnn, train_set, test_set, lr=0.01, epoch=5, is_ner=False)
 
