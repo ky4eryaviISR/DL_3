@@ -13,19 +13,6 @@ except ImportError:
     from xeger import Xeger
 
 
-def generate():
-    good = []
-    bad = []
-    x = Xeger(limit=15)
-    for i in range(500):
-        good.append(x.xeger(r'[1-9]+a+[1-9]+b+[1-9]+c+[1-9]+d+[1-9]+'))
-        bad.append(x.xeger(r'[1-9]+a+[1-9]+c+[1-9]+b+[1-9]+d+[1-9]+'))
-
-    with open('pos_examples', 'w') as f:
-        f.write('\n'.join(good))
-    with open('neg_examples', 'w') as f:
-        f.write('\n'.join(bad))
-
 
 def is_prime(n):
     if n==2 or n==3:
@@ -61,4 +48,30 @@ def generate_prime():
         f.write('\n'.join(bad))
 
 
-generate_prime()
+def generator():
+    good = []
+    bad = []
+    for i in range(500):
+        while True:
+            g = random.randint(10, 100000)
+            g = g*9
+            if g not in good:
+                break
+        good.append(str(g))
+        while True:
+            b = random.randint(10, 100000)
+            if b % 9 == 0:
+                b += 1
+            if b not in bad:
+                break
+        bad.append(str(b))
+
+
+    with open('pos_examples_generator', 'w') as f:
+        f.write('\n'.join(good))
+    with open('neg_examples_generator', 'w') as f:
+        f.write('\n'.join(bad))
+
+
+#generate_prime()
+generator()
