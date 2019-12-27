@@ -9,6 +9,12 @@ class PRINT(enum.Enum):
     TEST_ACC = 4
 
 
+to_print = {PRINT.TEST_ACC: [],
+            PRINT.TEST_LSS: [],
+            PRINT.TRAIN_ACC: [],
+            PRINT.TRAIN_LSS: []}
+
+
 def save_graph(train,test,y_axis):
     plt.suptitle(y_axis, fontsize=20)
     plt.figure()
