@@ -5,6 +5,7 @@ from torch.nn.utils.rnn import pad_sequence
 from pathlib import Path
 import sys
 import numpy as np
+from collections import Counter
 
 
 def pad_collate(batch):
@@ -53,6 +54,14 @@ class PyTorchDataset(torch.utils.data.Dataset):
     @staticmethod
     def load_file(path):
         data, target = np.genfromtxt(path, dtype='U20', unpack=True)
+
+        words = list(zip(*(data, target)))
+        word_dict = Counter(words)
+        min_threshold = 3
+
+        newDict = dict(filter(lambda elem: elem[1] > min_threshold, word_dict.items()))
+        keys, values = list(zip(*(newDict.items())))
+        data, target = list(zip(*(keys)))
         return data, target
 
     @staticmethod
@@ -96,7 +105,7 @@ if __name__ == '__main__':
     #root = Path('DL_3/Part3/{}'.format(sys.argv[1]))
     train_file = sys.argv[1]
     train_file = r'/home/vova/PycharmProjects/deep_exe3/DL_3/Part3/ner/train'
-    dataset = CharDataset(train_file)
+    dataset = PyTorchDataset(train_file)
 
     dataloader_train = DataLoader(dataset, batch_size=50, shuffle=True, collate_fn=pad_collate)
 
