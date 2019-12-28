@@ -16,6 +16,7 @@ def pad_collate(batch):
 
   return xx_pad, yy_pad
 
+
 class PyTorchDataset(torch.utils.data.Dataset):
     """Thin dataset wrapper for pytorch
 

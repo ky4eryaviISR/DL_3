@@ -6,8 +6,8 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
 # ToDO: change when submit
-from Part3.dataloader import PyTorchDataset, pad_collate, CharDataset
-from utils import to_print, PRINT, save_graph
+from DL_3.Part3.dataloader import PyTorchDataset, pad_collate, CharDataset
+from DL_3.utils import to_print, PRINT, save_graph
 # from DL_3.Part3.dataloader import PyTorchDataset, pad_collate
 # from DL_3.utils import to_print, PRINT
 
@@ -156,7 +156,7 @@ def evaluate(model, dataloader, criterion):
 
         Returns:
         --------
-            accuracy: float, calculate the data accuracy.
+0000            accuracy: float, calculate the data accuracy.
 
     """
 
@@ -325,9 +325,11 @@ variation = {
 if __name__ == '__main__':
     repr = argv[1]
     train_file = argv[2]
+    train_file = r"/home/vova/PycharmProjects/deep_exe3/DL_3/Part3/ner/train"
     model_file = argv[3]
     is_ner = True if argv[4] == 'ner' else False
     test_file = argv[5]
+    test_file = r"/home/vova/PycharmProjects/deep_exe3/DL_3/Part3/ner/dev"
     dataset_func = variation[repr]['loader']
     model = variation[repr]['model']
 
@@ -343,7 +345,7 @@ if __name__ == '__main__':
     #                embedding_dim=60,
     #                hidden_dim=100,
     #                tagset_size=tag_size).to(device)
-    bi_rnn = biLSTMTagger_A(vocab_size=voc_size, embedding_dim=50, hidden_dim=50, tagset_size=tag_size, device=device).to(device)
-    test_set = DataLoader(test_dataset, batch_size=1, shuffle=True, collate_fn=pad_collate)
+    bi_rnn = biLSTMTagger_A(vocab_size=voc_size, embedding_dim=30, hidden_dim=40, tagset_size=tag_size, device=device).to(device)
+    test_set = DataLoader(test_dataset, batch_size=50, shuffle=True, collate_fn=pad_collate)
     train(bi_rnn, train_set, test_set, lr=0.1, epoch=5, is_ner=False)
 
