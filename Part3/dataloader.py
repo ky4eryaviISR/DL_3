@@ -103,16 +103,52 @@ class PyTorchDataset(torch.utils.data.Dataset):
         return sentences, targets
 
 
-# path = r'/home/vova/PycharmProjects/test/data/ner/train'
-#
-# dataset = PyTorchDataset(path)
-#
-# dataloader_train = DataLoader(dataset, batch_size=2, shuffle=True, collate_fn=pad_collate)
-#
-# for i, batch in enumerate(dataloader_train):
-#     data, labels = batch
-#     print(data)
-#     print(data.shape)
+class CharDataset(PyTorchDataset):
+
+    def __init__(self, path):
+        self.sentences_var = []
+        super(CharDataset, self).__init__(path)
+
+    def load_data(self, path):
+        with open(path) as file:
+            temp_sentences = []
+            temp_targets = []
+            sentences = []
+            targets = []
+
+            for line in file:
+                try:
+                    word, label = line.split()
+                    temp_sentences.append(list(word)), temp_targets.append(label)
+                except ValueError:
+                    self.sentences_var.append(temp_sentences)
+                    sequens_sen = ' '.join(set([c for row in temp_sentences for c in row]))
+                    sequens_tar = ' '.join(temp_targets)
+                    sentences.append(sequens_sen)
+                    targets.append(sequens_tar)
+
+                    temp_sentences = []
+                    temp_targets = []
+
+        return sentences, targets
+
+    def convert2num(self, sentences, targets):
+        num_sentences = []
+        for sen in self.sentences_var:
+            sen_temp = []
+            for char_lst in sen:
+                sen_temp.append([PyTorchDataset.word_to_num.get(ch, PyTorchDataset.word_to_num['UNK']) for ch in char_lst])
+            num_sentences.append(sen_temp)
+
+        num_targets = []
+        for tar in targets:
+            tar_temp = []
+            target = tar.split()
+            for ttt in target:
+                tar_temp.append(PyTorchDataset.target_to_num.get(ttt))
+            num_targets.append(tar_temp)
+
+        return num_sentences, num_targets
 
 
 class PyTorchDataset_C(PyTorchDataset):
