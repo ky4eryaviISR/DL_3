@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader
 import torch.nn.functional as F
 # ToDO: change when submit
 from Part3.dataloader import PyTorchDataset, pad_collate, CharDataset
+from Part3.transducer1 import BidirectionRnn
 from utils import to_print, PRINT, save_graph
 # from DL_3.Part3.dataloader import PyTorchDataset, pad_collate
 # from DL_3.utils import to_print, PRINT
@@ -16,107 +17,6 @@ BATCH_SIZE = 1
 device = 'cuda' if cuda.is_available() else 'cpu'
 print("Graphical device test: {}".format(torch.cuda.is_available()))
 print("{} available".format(device))
-
-
-class biLSTMTagger_A(nn.Module):
-    """
-    biLSTM tagging model. representation: regular embedding
-    """
-    def __init__(self, vocab_size, embedding_dim, hidden_dim, tagset_size, device):
-        """
-        Initialize the model
-        """
-        super(biLSTMTagger_A, self).__init__()
-        # GPU device
-        self.device = device
-        # Dimensions
-        self.hidden_dim = hidden_dim
-        self.embedding_dim = embedding_dim
-        self.tagset_size = tagset_size
-        # Representation
-        self.embedding = nn.Embedding(vocab_size, embedding_dim)
-        # RNN - biLSTM with 2 layers
-        self.rnn = nn.LSTM(embedding_dim, hidden_dim, bidirectional=True, num_layers=2, dropout=0.5)
-        # Linear layer
-        self.hidden2tag = nn.Linear(hidden_dim * 2, tagset_size)
-        # Initialize hidden state in RNN
-        self.hidden = self.init_hidden()
-
-    def init_hidden(self):
-        """
-        We need to forget the RNN hidden state before dealing with new sequence
-        """
-        # The axes semantics are (num_layers*num_directions, minibatch_size, hidden_dim)
-        return (torch.zeros(4, 1, self.hidden_dim).to(self.device),
-                torch.zeros(4, 1, self.hidden_dim).to(self.device))
-
-    def forward(self, sentence):
-        """
-        The process of the model prediction
-        """
-        # Embed the sequences
-        embeds = self.embedding(sentence)
-        # Feed into the RNN
-        rnn_out, self.hidden = self.rnn(embeds.view(len(sentence),1,-1), self.hidden)
-        # Linear layer to tag space
-        output = self.hidden2tag(rnn_out.view(len(sentence), -1))
-        # Softmax
-        probs = F.softmax(output, dim=1)
-        return probs
-
-
-class BidirectionRnn(nn.Module):
-    """
-        BidirectionRnn tagging model.
-        representation: regular embedding
-    """
-
-    def __init__(self, vocab_size, embedding_dim, hidden_dim, tagset_size, bidirectional=True):
-        """
-        Initialize the model
-        """
-        super(BidirectionRnn, self).__init__()
-        # Dimensions
-        self.hidden_dim = hidden_dim
-        self.embedding_dim = embedding_dim
-        self.tagset_size = tagset_size
-        # Representation
-        self.embedding = nn.Embedding(vocab_size, embedding_dim)
-
-        # Initialize hidden state in RNN
-        self.hidden = self.init_hidden(BATCH_SIZE)
-
-        # RNN - BidirectionRnn with 2 layers
-        self.num_direction = 2 if bidirectional else 1
-        self.rnn = nn.LSTM(embedding_dim, hidden_dim, bidirectional=bidirectional, num_layers=2, dropout=0.3)
-        # Linear layer
-        self.hidden2out = nn.Linear(hidden_dim * 2, tagset_size)
-        self.softmax = nn.Softmax(dim=1)
-
-    def init_hidden(self,batch_size):
-        """
-        We need to forget the RNN hidden state before dealing with new sequence
-        """
-        # The axes semantics are (num_layers*num_directions, minibatch_size, hidden_dim)
-        return (torch.zeros(4, batch_size, self.hidden_dim).to(device),
-                torch.zeros(4, batch_size, self.hidden_dim).to(device))
-
-    def forward(self, sentence):
-        """
-        The process of the model prediction
-        """
-        # (1) input layer
-        inputs = sentence
-        # (2) embedding layer - Embed the sequences
-        embeds = self.embedding(inputs)
-        # (3) Feed into the RNN
-        rnn_out, self.hidden = self.rnn(embeds.view(sentence.shape[1], -1, self.embedding_dim), self.hidden)
-        # (4) Linear layer to tag space
-        output = self.hidden2out(rnn_out.view(sentence.shape[0], sentence.shape[1], -1))
-        # Softmax
-        probs = self.softmax(output)
-        #probs = probs.view(sentence.shape[0], self.tagset_size, -1)
-        return probs
 
 
 def ner_accuracy_calculation(prediction, labels, encoded_labels):
@@ -234,81 +134,7 @@ def train(model, train_loader, val_loader, lr=0.01, epoch=10, is_ner=False):
     save_graph(to_print[PRINT.TRAIN_ACC], to_print[PRINT.TEST_ACC], 'Accuracy')
     save_graph(to_print[PRINT.TRAIN_LSS], to_print[PRINT.TEST_LSS], 'Loss')
     return model
-# def train(device, train, dev, parameters):
-#     # Adam optimizer
-#     optimizer = optim.Adam(model.parameters(), lr=parameters['lr'], weight_decay=parameters['wd'])
-#     print(sys.argv[1])
-#
-#     for epoch in range(parameters['epochs']):
-#         loss = train_epoch(dataloader_train, model, optimizer, device)
-#         losses.append(loss)
-#         accuracy = evaluation(model, device, dataset_train, dataloader_validation)
-#         accuracies.append(accuracy)
-#         print("epoch: {}, accuracy: {}".format(epoch + 1, accuracy))
-#     return model, dataset_train.encoded_words, dataset_train.encode_num_to_label, losses, accuracies
-#
-# def train_epoch(dataloader_train, model, optimizer, device):
-#     """
-#     train the model on part of the data in each iteration.
-#
-#     Args:
-#     -----
-#         dataloader_train: instance of data loader obj
-#         model: neural network with one hidden layer.
-#         optimizer: Adam optimizer
-#         device: optional , run on GPU
-#
-#     Returns:
-#     --------
-#         loss_average: float, calculate the average loss.
-#
-#     """
-#
-#     total_loss = 0
-#     criterion = nn.CrossEntropyLoss()
-#     for i, batch in enumerate(dataloader_train):
-#         data, labels = batch
-#
-#         data = data.to(device)
-#         labels = labels.to(device)
-#
-#         # Set the gradients to zero
-#         model.zero_grad()
-#         probs = model(data)
-#
-#         # Calculate the loss
-#         loss = F.cross_entropy(probs, labels)
-#         loss.backward()
-#         optimizer.step()
-#
-#         total_loss += loss.item()
-#     return total_loss / len(dataloader_train)
 
-# def evaluate(loader, model, criterion, is_ner):
-#     loss_list = []
-#     correct = 0
-#     total = 0
-#     model.eval()
-#     with torch.no_grad():
-#         for x_batch, y_batch in loader:
-#             x_batch = x_batch.to(device)
-#             y_batch = y_batch.to(device)
-#             model.hidden = model.init_hidden(x_batch.shape[0])
-#             outputs = model(x_batch)
-#             loss_list.append(criterion(outputs, y_batch).item())
-#             if is_ner:
-#                 for y_real, yhat in zip(y_batch.tolist(), outputs.argmax(axis=1).tolist()):
-#                     for i in range(len(y_real)):
-#                         if PyTorchDataset.num_to_target[y_real[i]] == 'O' and yhat[i] == y_real[i]:
-#                             continue
-#                         if yhat[i] == y_real[i]:
-#                             correct += 1
-#                         total += 1
-#             else:
-#                 total += y_batch.shape[0]*y_batch.shape[1]
-#                 correct += (outputs.argmax(axis=1) == y_batch).sum().item()
-#
-#     return 100*correct/total, sum(loss_list)/total
 
 variation = {
     'a': {
@@ -319,7 +145,6 @@ variation = {
         'loader': CharDataset
     }
 }
-
 
 
 if __name__ == '__main__':
@@ -334,6 +159,7 @@ if __name__ == '__main__':
     # train_file = r'/home/vova/PycharmProjects/deep_exe3/DL_3/Part3/ner/train'
     # train_file = r'/home/vova/PycharmProjects/deep_exe3/DL_3/Part3/ner/train'
     # test_file = r'/home/vova/PycharmProjects/deep_exe3/DL_3/Part3/ner/dev'
+
     train_dataset = dataset_func(train_file)
     test_dataset = dataset_func(test_file)
     train_set = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=pad_collate)
