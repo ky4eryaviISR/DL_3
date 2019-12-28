@@ -4,19 +4,16 @@ import torch
 from torch import cuda, nn
 from torch.optim import Adam
 from torch.utils.data import DataLoader
-import torch.nn.functional as F
 # ToDO: change when submit
 from Part3.new_approch import PyTorchDataset, pad_collate
 from Part3.transducer1 import BidirectionRnn
-from side.biLSTMModels import biLSTMTagger_A
-from utils import to_print, PRINT, save_graph
 from utils import to_print, PRINT, save_graph
 #from DL_3.Part3.dataloader import PyTorchDataset, pad_collate, CharDataset
 #from DL_3.utils import to_print, PRINT, save_graph
 # from DL_3.Part3.dataloader import PyTorchDataset, pad_collate
 # from DL_3.utils import to_print, PRINT
 
-BATCH_SIZE = 1
+BATCH_SIZE = 25
 
 device = 'cuda' if cuda.is_available() else 'cpu'
 print("Graphical device test: {}".format(torch.cuda.is_available()))
@@ -69,27 +66,30 @@ def evaluate(model, dataloader, criterion):
     accuracy = 0
     total_loss = 0
     for i, batch in enumerate(dataloader):
-        data, labels = batch
+        data, labels, len_data, _ = batch
         model.hidden = model.init_hidden(data.shape[0])
         # Set the data to run on GPU
         data = data.to(device)
-        labels = labels.squeeze(0).to(device)
+        labels = labels.view(-1).to(device)
 
         # Set the gradients to zero
         model.zero_grad()
-        probs = model(data)
+        probs = model(data, len_data).view(-1, tag_size)
+
+        #clear padding
+        prediction = torch.argmax(probs, dim=1)
+        tag_pad_token = PyTorchDataset.target_to_num['<PAD>']
+        mask = (labels > tag_pad_token)
 
         # Calculate the loss
-        loss = criterion(probs, labels)
+        loss = criterion(probs[mask], labels[mask])
         total_loss += loss.item()
-
-        prediction = torch.argmax(probs, dim=1)
 
         if is_ner == 'ner':
             acc = ner_accuracy_calculation(prediction, labels, PyTorchDataset.num_to_target)
         else:
-            acc = (prediction == labels).sum().item()
-        total += labels.shape[0]
+            acc = (prediction[mask] == labels[mask]).sum().item()
+        total += mask.sum().item()
         accuracy += acc
 
     # Average accuracy and loss
@@ -108,14 +108,14 @@ def train(model, train_loader, val_loader, lr=0.01, epoch=10, is_ner=False):
     for t in range(epoch):
         passed_sen = 0
         print("new epoch")
-        for x_batch, y_batch in train_loader:
+        for x_batch, y_batch, len_x, len_y in train_loader:
             model.train()
             passed_sen += int(x_batch.shape[0])
             model.hidden = model.init_hidden(x_batch.shape[0])
             x_batch = x_batch.to(device)
-            y_batch = y_batch.squeeze(0).to(device)
+            y_batch = y_batch.view(-1).to(device)
             # Makes predictions
-            yhat = model(x_batch)
+            yhat = model(x_batch, len_x).view(-1, tag_size)
             # Computes loss
             loss = criterion(yhat, y_batch)
             # Computes gradients
@@ -173,11 +173,11 @@ if __name__ == '__main__':
     tag_size = len(PyTorchDataset.target_to_num)
     bi_rnn = model(vocab_size=voc_size,
                    embedding_dim=50,
-                   hidden_dim=10,
+                   hidden_dim=50,
                    tagset_size=tag_size,
                    batch_size=BATCH_SIZE,
-                   device=device).to(device)
-    # bi_rnn = biLSTMTagger_A(vocab_size=voc_size, embedding_dim=50, hidden_dim=20, tagset_size=tag_size, device=device).to(device)
-    test_set = DataLoader(test_dataset, batch_size=1, shuffle=True, collate_fn=pad_collate)
+                   device=device,
+                   padding_idx=PyTorchDataset.word_to_num['<PAD>']).to(device)
+    test_set = DataLoader(test_dataset, batch_size=100, shuffle=True, collate_fn=pad_collate)
     train(bi_rnn, train_set, test_set, lr=0.01, epoch=5, is_ner=False)
 
