@@ -29,7 +29,7 @@ class BidirectionRnn(nn.Module):
         self.rnn = nn.LSTM(embedding_dim, hidden_dim, bidirectional=bidirectional, num_layers=2, dropout=0.3)
         # Linear layer
         self.hidden2out = nn.Linear(hidden_dim * 2, tagset_size)
-        self.softmax = nn.Softmax(dim=1)
+        self.softmax = nn.Softmax(dim=2)
 
     def init_hidden(self,batch_size):
         """
@@ -50,8 +50,8 @@ class BidirectionRnn(nn.Module):
         # (3) Feed into the RNN
         rnn_out, self.hidden = self.rnn(embeds.view(sentence.shape[1], -1, self.embedding_dim), self.hidden)
         # (4) Linear layer to tag space
-        output = self.hidden2out(rnn_out.view(sentence.shape[0], sentence.shape[1], -1))
+        output = self.hidden2out(rnn_out)
+        output = output.view(sentence.shape[0], -1, self.tagset_size)
         # Softmax
         probs = self.softmax(output)
-        #probs = probs.view(sentence.shape[0], self.tagset_size, -1)
         return probs

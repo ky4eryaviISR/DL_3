@@ -6,9 +6,13 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
 # ToDO: change when submit
-from Part3.dataloader import PyTorchDataset, pad_collate, CharDataset
+from Part3.new_approch import PyTorchDataset, pad_collate
 from Part3.transducer1 import BidirectionRnn
+from side.biLSTMModels import biLSTMTagger_A
 from utils import to_print, PRINT, save_graph
+from utils import to_print, PRINT, save_graph
+#from DL_3.Part3.dataloader import PyTorchDataset, pad_collate, CharDataset
+#from DL_3.utils import to_print, PRINT, save_graph
 # from DL_3.Part3.dataloader import PyTorchDataset, pad_collate
 # from DL_3.utils import to_print, PRINT
 
@@ -56,7 +60,7 @@ def evaluate(model, dataloader, criterion):
 
         Returns:
         --------
-            accuracy: float, calculate the data accuracy.
+0000            accuracy: float, calculate the data accuracy.
 
     """
 
@@ -66,10 +70,10 @@ def evaluate(model, dataloader, criterion):
     total_loss = 0
     for i, batch in enumerate(dataloader):
         data, labels = batch
-        model.hidden = model.init_hidden()
+        model.hidden = model.init_hidden(data.shape[0])
         # Set the data to run on GPU
-        data = data[0].to(device)
-        labels = labels[0].to(device)
+        data = data.to(device)
+        labels = labels.to(device)
 
         # Set the gradients to zero
         model.zero_grad()
@@ -85,7 +89,7 @@ def evaluate(model, dataloader, criterion):
             acc = ner_accuracy_calculation(prediction, labels, PyTorchDataset.num_to_target)
         else:
             acc = (prediction == labels).sum().item()
-        total += labels.shape[0]
+        total += labels.shape[0]*labels.shape[1]
         accuracy += acc
 
     # Average accuracy and loss
@@ -107,13 +111,13 @@ def train(model, train_loader, val_loader, lr=0.01, epoch=10, is_ner=False):
         for x_batch, y_batch in train_loader:
             model.train()
             passed_sen += int(x_batch.shape[0])
-            model.hidden = model.init_hidden()
+            model.hidden = model.init_hidden(x_batch.shape[0])
             x_batch = x_batch.to(device)
             y_batch = y_batch.to(device)
             # Makes predictions
-            yhat = model(x_batch[0])
+            yhat = model(x_batch)
             # Computes loss
-            loss = criterion(yhat, y_batch[0])
+            loss = criterion(yhat, y_batch)
             # Computes gradients
             loss.backward()
             # Updates parameters and zeroes gradients
@@ -142,7 +146,7 @@ variation = {
         'model': BidirectionRnn,
     },
     'b': {
-        'loader': CharDataset
+        #'loader': CharDataset
     }
 }
 
@@ -150,9 +154,11 @@ variation = {
 if __name__ == '__main__':
     repr = argv[1]
     train_file = argv[2]
+    #train_file = r"/home/vova/PycharmProjects/deep_exe3/DL_3/Part3/ner/train"
     model_file = argv[3]
     is_ner = True if argv[4] == 'ner' else False
     test_file = argv[5]
+    #test_file = r"/home/vova/PycharmProjects/deep_exe3/DL_3/Part3/ner/dev"
     dataset_func = variation[repr]['loader']
     model = variation[repr]['model']
 
@@ -165,11 +171,13 @@ if __name__ == '__main__':
     train_set = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=pad_collate)
     voc_size = len(PyTorchDataset.word_to_num)
     tag_size = len(PyTorchDataset.target_to_num)
-    # bi_rnn = model(vocab_size=voc_size,
-    #                embedding_dim=60,
-    #                hidden_dim=100,
-    #                tagset_size=tag_size).to(device)
-    bi_rnn = biLSTMTagger_A(vocab_size=voc_size, embedding_dim=50, hidden_dim=50, tagset_size=tag_size, device=device).to(device)
+    bi_rnn = model(vocab_size=voc_size,
+                   embedding_dim=50,
+                   hidden_dim=10,
+                   tagset_size=tag_size,
+                   batch_size=BATCH_SIZE,
+                   device=device).to(device)
+    # bi_rnn = biLSTMTagger_A(vocab_size=voc_size, embedding_dim=50, hidden_dim=20, tagset_size=tag_size, device=device).to(device)
     test_set = DataLoader(test_dataset, batch_size=1, shuffle=True, collate_fn=pad_collate)
-    train(bi_rnn, train_set, test_set, lr=0.1, epoch=5, is_ner=False)
+    train(bi_rnn, train_set, test_set, lr=0.01, epoch=5, is_ner=False)
 
