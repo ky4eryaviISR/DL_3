@@ -73,7 +73,7 @@ def evaluate(model, dataloader, criterion):
         model.hidden = model.init_hidden(data.shape[0])
         # Set the data to run on GPU
         data = data.to(device)
-        labels = labels.to(device)
+        labels = labels.squeeze(0).to(device)
 
         # Set the gradients to zero
         model.zero_grad()
@@ -89,7 +89,7 @@ def evaluate(model, dataloader, criterion):
             acc = ner_accuracy_calculation(prediction, labels, PyTorchDataset.num_to_target)
         else:
             acc = (prediction == labels).sum().item()
-        total += labels.shape[0]*labels.shape[1]
+        total += labels.shape[0]
         accuracy += acc
 
     # Average accuracy and loss
@@ -113,7 +113,7 @@ def train(model, train_loader, val_loader, lr=0.01, epoch=10, is_ner=False):
             passed_sen += int(x_batch.shape[0])
             model.hidden = model.init_hidden(x_batch.shape[0])
             x_batch = x_batch.to(device)
-            y_batch = y_batch.to(device)
+            y_batch = y_batch.squeeze(0).to(device)
             # Makes predictions
             yhat = model(x_batch)
             # Computes loss
