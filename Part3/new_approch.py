@@ -10,12 +10,13 @@ from collections import Counter
 
 def pad_collate(batch):
   (xx, yy) = zip(*batch)
+  x_lens = [len(x) for x in xx]
+  y_lens = [len(y) for y in yy]
 
   xx_pad = pad_sequence(xx, batch_first=True, padding_value=0)
   yy_pad = pad_sequence(yy, batch_first=True, padding_value=0)
 
-  return xx_pad, yy_pad
-
+  return xx_pad, yy_pad, x_lens, y_lens
 
 
 class PyTorchDataset(torch.utils.data.Dataset):
@@ -79,10 +80,12 @@ class PyTorchDataset(torch.utils.data.Dataset):
 
         PyTorchDataset.vocab = set(sen_temp)
         PyTorchDataset.vocab.add('UNK')
+        PyTorchDataset.vocab.add('<PAD>')
         targets = set(tar_temp)
 
         PyTorchDataset.word_to_num = dict(zip(PyTorchDataset.vocab, range(len(PyTorchDataset.vocab))))
-        PyTorchDataset.target_to_num = dict(zip(targets, range(len(targets))))
+        PyTorchDataset.target_to_num = dict(zip(targets, range(1, len(targets)+1)))
+        PyTorchDataset.target_to_num['<PAD>'] = 0
         PyTorchDataset.num_to_target = {k: v for v, k in cls.target_to_num.items()}
 
 
