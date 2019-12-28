@@ -5,8 +5,9 @@ from torch import cuda, nn
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 # ToDO: change when submit
-from Part3.new_approch import PyTorchDataset, pad_collate
+from Part3.dataloader import PyTorchDataset, pad_collate, PyTorchDataset_C
 from Part3.transducer1 import BidirectionRnn
+from Part3.transducer3 import BidirectionRnnPrefSuff
 from utils import to_print, PRINT, save_graph
 #from DL_3.Part3.dataloader import PyTorchDataset, pad_collate, CharDataset
 #from DL_3.utils import to_print, PRINT, save_graph
@@ -127,12 +128,12 @@ def train(model, train_loader, val_loader, lr=0.01, epoch=10, is_ner=False):
             loss_list.append(loss.item())
             if passed_sen % 500 == 0:
                 acc_dev, loss_dev = evaluate(model, val_loader, criterion)
-                acc_tr, loss_tr = evaluate(model, train_loader, criterion)
+                #acc_tr, loss_tr = evaluate(model, train_loader, criterion)
                     # to_print[PRINT.TRAIN_ACC].append(acc_tr)
                     # to_print[PRINT.TRAIN_LSS].append(loss_tr)
                     # to_print[PRINT.TEST_ACC].append(acc_dev)
                     # to_print[PRINT.TEST_LSS].append(loss_dev)
-                print(f"Epoch:{t+1} Train Acc:{acc_tr:.2f} Loss:{loss_tr:.8f} "
+                print(#f"Epoch:{t+1} Train Acc:{acc_tr:.2f} Loss:{loss_tr:.8f} "
                       f"Acc Dev Acc: {acc_dev:.2f} Loss:{loss_dev:.8f} ")
 
     save_graph(to_print[PRINT.TRAIN_ACC], to_print[PRINT.TEST_ACC], 'Accuracy')
@@ -147,6 +148,10 @@ variation = {
     },
     'b': {
         #'loader': CharDataset
+    },
+    'c': {
+        'loader': PyTorchDataset_C,
+        'model': BidirectionRnnPrefSuff,
     }
 }
 
