@@ -110,13 +110,13 @@ class PyTorchDataset(torch.utils.data.Dataset):
 
         return sentences, targets
 
-path = r'/home/vova/PycharmProjects/test/data/ner/train'
-
-dataset = PyTorchDataset(path)
-
-dataloader_train = DataLoader(dataset, batch_size=2, shuffle=True, collate_fn=pad_collate)
-
-for i, batch in enumerate(dataloader_train):
-    data, labels = batch
-    print(data)
-    print(data.shape)
+# path = r'/home/vova/PycharmProjects/test/data/ner/train'
+#
+# dataset = PyTorchDataset(path)
+#
+# dataloader_train = DataLoader(dataset, batch_size=2, shuffle=True, collate_fn=pad_collate)
+#
+# for i, batch in enumerate(dataloader_train):
+#     data, labels = batch
+#     print(data)
+#     print(data.shape)
