@@ -5,7 +5,7 @@ from torch import cuda, nn
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 # ToDO: change when submit
-from Part3.dataloader import PyTorchDataset, pad_collate, PyTorchDataset_C
+from Part3.dataloader import PyTorchDataset, pad_collate, PyTorchDataset_C, CharDataset
 from Part3.transducer1 import BidirectionRnn
 from Part3.transducer3 import BidirectionRnnPrefSuff
 from utils import to_print, PRINT, save_graph
@@ -147,7 +147,8 @@ variation = {
         'model': BidirectionRnn,
     },
     'b': {
-        #'loader': CharDataset
+        'loader': CharDataset,
+        'model':[]
     },
     'c': {
         'loader': PyTorchDataset_C,
