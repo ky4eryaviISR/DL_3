@@ -37,8 +37,8 @@ class BidirectionRnn(nn.Module):
         We need to forget the RNN hidden state before dealing with new sequence
         """
         # The axes semantics are (num_layers*num_directions, minibatch_size, hidden_dim)
-        return (torch.zeros(4, batch_size, self.hidden_dim).to(self.device),
-                torch.zeros(4, batch_size, self.hidden_dim).to(self.device))
+        return (torch.zeros(2, batch_size, self.hidden_dim).to(self.device),
+                torch.zeros(2, batch_size, self.hidden_dim).to(self.device))
 
     def forward(self, sentence, word_len):
         """

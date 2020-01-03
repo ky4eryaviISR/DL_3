@@ -7,11 +7,38 @@ def pad_collate(batch):
   (xx, yy) = zip(*batch)
   x_lens = [len(x) for x in xx]
   y_lens = [len(y) for y in yy]
-
   xx_pad = pad_sequence(xx, batch_first=True, padding_value=0)
   yy_pad = pad_sequence(yy, batch_first=True, padding_value=0)
 
-  return xx_pad, yy_pad, x_lens, y_lens
+  return xx_pad, yy_pad, x_lens, y_lens, None
+
+
+def pad_collate_sorted(batch):
+    (xx, yy) = zip(*batch)
+    if xx[0].dim() == 1:
+        return pad_collate(batch)
+
+    x_lens = [len(x) for x in xx]
+    y_lens = [len(y) for y in yy]
+    shape_0 = max([item.shape[0] for item in xx])
+    shape_1 = max([item.shape[1] for item in xx])
+    xx_pad = torch.zeros(len(batch), shape_0, shape_1, dtype=torch.long)
+    yy_pad = torch.zeros(len(batch), shape_0, dtype=torch.long)
+    for i, item in enumerate(zip(xx, yy)):
+        x, y = item
+        xx_pad[i, :x.shape[0], :x.shape[1]] = x
+        yy_pad[i, :x.shape[0]] = y
+    word_lens = []
+    for k in range(xx_pad.shape[0]):
+        for i in range(xx_pad.shape[1]):
+            for j in range(xx_pad.shape[2]):
+                if xx_pad[k][i][j] == 0:
+                    word_lens.append(j)
+                    break
+            else:
+                word_lens.append(j+1)
+
+    return xx_pad, yy_pad, x_lens, y_lens, torch.tensor(word_lens)
 
 
 class PyTorchDataset(torch.utils.data.Dataset):
@@ -71,10 +98,10 @@ class PyTorchDataset(torch.utils.data.Dataset):
 
         PyTorchDataset.vocab = set(sen_temp)
         PyTorchDataset.vocab.add('UNK')
-        PyTorchDataset.vocab.add('<PAD>')
         targets = set(tar_temp)
 
-        PyTorchDataset.word_to_num = dict(zip(PyTorchDataset.vocab, range(len(PyTorchDataset.vocab))))
+        PyTorchDataset.word_to_num = dict(zip(PyTorchDataset.vocab, range(1, len(PyTorchDataset.vocab)+1)))
+        PyTorchDataset.word_to_num['<PAD>'] = 0
         PyTorchDataset.target_to_num = dict(zip(targets, range(1, len(targets)+1)))
         PyTorchDataset.target_to_num['<PAD>'] = 0
         PyTorchDataset.num_to_target = {k: v for v, k in cls.target_to_num.items()}
@@ -137,7 +164,7 @@ class CharDataset(PyTorchDataset):
         for sen in self.sentences_var:
             sen_temp = []
             for char_lst in sen:
-                sen_temp.append([PyTorchDataset.word_to_num.get(ch, PyTorchDataset.word_to_num['UNK']) for ch in char_lst])
+                sen_temp.append([PyTorchDataset.word_to_num[ch] for ch in char_lst])
             num_sentences.append(sen_temp)
 
         num_targets = []
@@ -149,6 +176,18 @@ class CharDataset(PyTorchDataset):
             num_targets.append(tar_temp)
 
         return num_sentences, num_targets
+
+    def padding(self,x,max):
+        diff = max - len(x)
+        return x + [0]*diff
+
+    def __getitem__(self, idx):
+        x, y = self.X[idx], self.Y[idx]
+        max_len = max([len(lst) for lst in x])
+        x = [self.padding(item,max_len) for item in x]
+        data = torch.tensor(x, dtype=torch.long)
+        target = torch.tensor(y, dtype=torch.long)
+        return (data, target)
 
 
 class PyTorchDataset_C(PyTorchDataset):
