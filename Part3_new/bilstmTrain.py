@@ -79,7 +79,7 @@ variation = {
         'pos': {
             'hid': 100,
             'emb_dim': 128,
-            'batch_size': 8,
+            'batch_size': 4,
             'lr': 0.007,
             'btw_rnn': 32
         },
@@ -136,7 +136,7 @@ def train(model, train_loader, test_loader, repr_val, lr, epoch, corpus):
         weight = [1 if k == 'O' else 0.3 for k, v in PyTorchDataset.target_to_num.items()]
         criterion = nn.CrossEntropyLoss(torch.FloatTensor(weight).to(device), reduction='sum')
     else:
-        criterion = nn.CrossEntropyLoss(reduction='sum')
+        criterion = nn.CrossEntropyLoss(reduction='sum', ignore_index=0)
     optimizer = Adam(model.parameters(), lr=lr)
 
     loss_list = []
