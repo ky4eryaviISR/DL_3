@@ -3,17 +3,17 @@ from torch import nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 
-class BidirectionRnn(nn.Module):
+class BidirectionRnnPrefSuff(nn.Module):
     """
         BidirectionRnn tagging model.
         representation: regular embedding
     """
 
-    def __init__(self, vocab_size, embedding_dim, hidden_dim, tagset_size, batch_size, device, bidirectional=True,padding_idx=None):
+    def __init__(self, vocab_size, embedding_dim, hidden_dim, tagset_size, batch_size, device, bidirectional=True, padding_idx=None):
         """
         Initialize the model
         """
-        super(BidirectionRnn, self).__init__()
+        super(BidirectionRnnPrefSuff, self).__init__()
         # Dimensions
         self.hidden_dim = hidden_dim
         self.embedding_dim = embedding_dim
@@ -37,8 +37,8 @@ class BidirectionRnn(nn.Module):
         We need to forget the RNN hidden state before dealing with new sequence
         """
         # The axes semantics are (num_layers*num_directions, minibatch_size, hidden_dim)
-        return (torch.zeros(2, batch_size, self.hidden_dim).to(self.device),
-                torch.zeros(2, batch_size, self.hidden_dim).to(self.device))
+        return (torch.zeros(4, batch_size, self.hidden_dim).to(self.device),
+                torch.zeros(4, batch_size, self.hidden_dim).to(self.device))
 
     def forward(self, sentence, word_len):
         """
@@ -47,7 +47,7 @@ class BidirectionRnn(nn.Module):
         # (1) input layer
         inputs = sentence
         # (2) embedding layer - Embed the sequences
-        embeds = self.embedding(inputs)
+        embeds = self.embedding(inputs).sum(2)
         embeds = pack_padded_sequence(embeds, word_len, batch_first=True, enforce_sorted=False)
         # (3) Feed into the RNN
         rnn_out, self.hidden = self.rnn(embeds)
