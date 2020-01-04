@@ -69,8 +69,6 @@ def evaluate(model, dataloader, criterion):
     accuracy = 0
     total_loss = 0
     total_lss_count = 0
-    pad_val = PyTorchDataset.target_to_num['<PAD>']
-    o_val = PyTorchDataset.target_to_num['O']
     for i, batch in enumerate(dataloader):
         data, labels, len_data, _, lane_size = batch
         model.hidden = model.init_hidden(data.shape[0])
@@ -95,7 +93,7 @@ def evaluate(model, dataloader, criterion):
         total_loss += loss.item()
 
         if is_ner:
-            # mask = ~(((prediction == pad_val) &(labels == pad_val)) || (prediction == o_val) & (labels == o_val))
+            mask = ~((labels == pad_val) | ((prediction == o_val) & (labels == o_val)))
             ind = mask.nonzero().squeeze()
             check_predictions, check_labels = prediction[ind], labels[ind]
             if ind.nelement() == 0:
@@ -189,6 +187,7 @@ variation = {
         'model': BidirectionRnnPrefSuff,
         'padd_func': pad_collate,
         'emb_dim': 50,
+        'batch_size': 16,
         'lr': 0.01
     },
     'd': {
@@ -214,6 +213,9 @@ if __name__ == '__main__':
     emb = variation[repr]['emb_dim']
     BATCH_SIZE = variation[repr]['batch_size']
     lr = variation[repr]['lr']
+    emb_dim = 100
+    batch_size = 8
+    lr = 0.003
     # train_file = r'/home/vova/PycharmProjects/deep_exe3/DL_3/Part3/ner/train'
     # train_file = r'/home/vova/PycharmProjects/deep_exe3/DL_3/Part3/ner/train'
     # test_file = r'/home/vova/PycharmProjects/deep_exe3/DL_3/Part3/ner/dev'
@@ -226,23 +228,21 @@ if __name__ == '__main__':
     s = [lr_lst, emb_dim_lst, hidden_dim_lst, btw_rnn_lst]
     x = list(product(*s))
 
-    for lr, emb, hid, btw_rnn in x:
-        lr = 0.001
-        print(f"LR:{lr} EMB:{emb} HID:{hid} BTW:{btw_rnn}")
-        train_dataset = dataset_func(train_file)
-        test_dataset = dataset_func(test_file)
-        train_set = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=pad_func)
-        voc_size = len(PyTorchDataset.word_to_num)
-        tag_size = len(PyTorchDataset.target_to_num)
-        bi_rnn = model(vocab_size=voc_size,
-                       embedding_dim=emb,
-                       hidden_dim=hid,
-                       tagset_size=tag_size,
-                       batch_size=BATCH_SIZE,
-                       device=device,
-                       padding_idx=PyTorchDataset.word_to_num['<PAD>'],
-                       # btw_rnn=btw_rnn).to(device)
-                       ).to(device)
-        test_set = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=pad_func)
-        train(bi_rnn, train_set, test_set, repr, lr=lr, epoch=2, is_ner=False)
+    # print(f"LR:{lr} EMB:{emb} HID:{hid} BTW:{btw_rnn}")
+    train_dataset = dataset_func(train_file)
+    test_dataset = dataset_func(test_file)
+    train_set = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=pad_collate_sorted)
+    voc_size = len(PyTorchDataset.word_to_num)
+    tag_size = len(PyTorchDataset.target_to_num)
+    bi_rnn = model(vocab_size=voc_size,
+                   embedding_dim=emb,
+                   hidden_dim=50,
+                   tagset_size=tag_size,
+                   batch_size=BATCH_SIZE,
+                   device=device,
+                   padding_idx=PyTorchDataset.word_to_num['<PAD>'],
+                   # btw_rnn=btw_rnn).to(device)
+                   ).to(device)
+    test_set = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=pad_collate_sorted)
+    train(bi_rnn, train_set, test_set, repr, lr=lr, epoch=2, is_ner=False)
 
