@@ -9,7 +9,7 @@ from Part3_new.transducer1 import BidirectionRnn
 from Part3_new.transducer2 import BidirectionRnnCharToSequence
 from Part3_new.transducer3 import BidirectionRnnPrefSuff
 from Part3_new.transducer4 import ComplexRNN
-
+from datetime import datetime
 device = 'cuda' if cuda.is_available() else 'cpu'
 repr_val = argv[1]
 train_file = argv[2]
@@ -104,8 +104,7 @@ def evaluate(model, test_loader, corpus, criterion):
     model.eval()
     with torch.no_grad():
         for data, labels, len_data, _, lane_size in test_loader:
-            data = data.to(device)
-            labels = labels.view(-1).to(device)
+            labels = labels.view(-1)
             if lane_size is not None:
                 probs = model(data, len_data, lane_size).view(-1, tag_size)
             else:
@@ -131,7 +130,7 @@ def evaluate(model, test_loader, corpus, criterion):
             loss += criterion(probs, labels)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
-    print(f'Acc:{100 * correct / total:.2f} Loss:{loss/total:}')
+    print(f'{datetime.now()}: Acc:{100 * correct / total:.2f} Loss:{loss/total:}')
 
 
 def train(model, train_loader, test_loader, repr_val, lr, epoch, corpus):
@@ -145,16 +144,16 @@ def train(model, train_loader, test_loader, repr_val, lr, epoch, corpus):
     loss_list = []
     for i in range(epoch):
         passed_sen = 0
-        print(f"Epoch number: {i+1}")
+        print(f"{datetime.now()}:Epoch number: {i+1}")
         for x_batch, y_batch, len_x, len_y, lane_size in train_loader:
-            x_batch = x_batch.to(device)
-            y_batch = y_batch.view(-1).to(device)
+            # print(f"{datetime.now()}:NEW BATCH")
+            passed_sen += int(y_batch.shape[0])
+            y_batch = y_batch.view(-1)
 
             model.train()
             optimizer.zero_grad()
-            passed_sen += int(x_batch.shape[0])
             if lane_size is not None:
-                yhat = model(x_batch, len_x, lane_size).view(-1, tag_size)
+                yhat = model(x_batch, len_x, word_len=lane_size).view(-1, tag_size)
             else:
                 yhat = model(x_batch, len_x).view(-1, tag_size)
             loss = criterion(yhat, y_batch)
@@ -163,7 +162,7 @@ def train(model, train_loader, test_loader, repr_val, lr, epoch, corpus):
             loss_list.append(loss.item())
             if passed_sen > 500:
                 passed_sen = passed_sen % 500
-                evaluate(model, test_loader, corpus,criterion)
+                evaluate(model, test_loader, corpus, criterion)
 
 
 if __name__ == '__main__':
@@ -172,7 +171,6 @@ if __name__ == '__main__':
     model = variation[repr_val]['model']
     lr = variation[repr_val][corpus]['lr']
     batch_size = variation[repr_val][corpus]['batch_size']
-
 
     train_dataset = dataset_func(train_file)
     test_dataset = dataset_func(test_file)
@@ -187,6 +185,8 @@ if __name__ == '__main__':
             }
     if repr_val in ['b', 'd']:
         args['btw_rnn'] = variation[repr_val][corpus]['btw_rnn']
+    if repr_val == 'd':
+        args['vocab_size'] = (len(PyTorchDataset.word_to_num), len(CharSentenceDataset.word_to_num))
     print(args)
     bi_rnn = model(**args).to(device)
 
