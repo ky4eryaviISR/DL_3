@@ -2,8 +2,8 @@ import torch
 from torch import nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
-from Part3.transducer1 import BidirectionRnn
-from Part3.transducer2 import BidirectionRnnCharToSequence
+from Part3_new.transducer1 import BidirectionRnn
+from Part3_new.transducer2 import BidirectionRnnCharToSequence
 
 
 class ComplexRNN(nn.Module):
@@ -19,7 +19,7 @@ class ComplexRNN(nn.Module):
         """
         super(ComplexRNN, self).__init__()
         # Linear layer
-        self.modelA = BidirectionRnn(vocab_size=vocab_size,
+        self.modelA = BidirectionRnn(vocab_size=vocab_size[0],
                                      embedding_dim=embedding_dim,
                                      hidden_dim=hidden_dim,
                                      tagset_size=tagset_size,
@@ -27,7 +27,7 @@ class ComplexRNN(nn.Module):
                                      device=device,
                                      padding_idx=padding_idx).to(device)
 
-        self.modelB = BidirectionRnnCharToSequence(vocab_size=vocab_size,
+        self.modelB = BidirectionRnnCharToSequence(vocab_size=vocab_size[1],
                                                    embedding_dim=embedding_dim,
                                                    hidden_dim=hidden_dim,
                                                    tagset_size=tagset_size,
@@ -35,16 +35,17 @@ class ComplexRNN(nn.Module):
                                                    device=device,
                                                    padding_idx=padding_idx,
                                                    btw_rnn=btw_rnn).to(device)
-        self.hidden2out = nn.Linear(tagset_size * 2, tagset_size)
+        self.hidden2out = nn.Linear(tagset_size, tagset_size)
         self.softmax = nn.Softmax(dim=2)
 
     def forward(self, sentence, sen_len, word_len):
         """
         The process of the model prediction
         """
-        out1 = self.modelA(sentence)
-        out2 = self.modelB(sentence, sen_len, word_len)
-        out = torch.cat((out1, out2), dim=1)
+        out1 = self.modelA(sentence[1], sen_len)
+        out2 = self.modelB(sentence[0], sen_len, word_len)
+        # out = torch.cat((out1, out2), dim=2)
+        out = (out1+out2)/2
         out = self.hidden2out(out)
         probs = self.softmax(out)
-        return probs.view(sentence.shape[0], sentence.shape[1], -1)
+        return probs
