@@ -42,8 +42,8 @@ class ComplexRNN(nn.Module):
         """
         The process of the model prediction
         """
-        out1 = self.modelA(sentence[1], sen_len)
-        out2 = self.modelB(sentence[0], sen_len, word_len)
+        out1 = self.modelA(sentence[0], sen_len)
+        out2 = self.modelB(sentence[1], sen_len, word_len)
         out = torch.cat((out1, out2), dim=2)
         out = self.hidden2out(out)
         probs = self.softmax(out)
