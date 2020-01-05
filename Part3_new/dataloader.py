@@ -6,16 +6,17 @@ from collections import Counter
 
 from torch.utils.data.dataloader import DataLoader
 
+
 device = 'cuda' if cuda.is_available() else 'cpu'
 
 def pad_collate(batch):
   (xx, yy) = zip(*batch)
   x_lens = [len(x) for x in xx]
   y_lens = [len(y) for y in yy]
-  xx_pad = pad_sequence(xx, batch_first=True, padding_value=0)
-  yy_pad = pad_sequence(yy, batch_first=True, padding_value=0)
+  xx_pad = pad_sequence(xx, batch_first=True, padding_value=0).to(device)
+  yy_pad = pad_sequence(yy, batch_first=True, padding_value=0).to(device)
 
-  return xx_pad, yy_pad, x_lens, y_lens, None
+  return xx_pad, yy_pad, x_lens, None
 
 
 def padding(x, max):
@@ -44,16 +45,14 @@ def pad_collate_sorted(batch):
     if len(list(zip(*batch))) > 2:
         return complex_pad_collate(batch)
     (xx, yy) = zip(*batch)
-    xx2 = None
-    if xx[0].dim() == 1:
+    if xx[0].dim() == 1 or xx[0].shape[1]==3:
         return pad_collate(batch)
 
     x_lens = [len(x) for x in xx]
-    y_lens = [len(y) for y in yy]
     shape_0 = max([item.shape[0] for item in xx])
     shape_1 = max([item.shape[1] for item in xx])
-    xx_pad = torch.zeros(len(batch), shape_0, shape_1, dtype=torch.long)
-    yy_pad = torch.zeros(len(batch), shape_0, dtype=torch.long)
+    xx_pad = torch.zeros(len(batch), shape_0, shape_1, dtype=torch.long).to(device)
+    yy_pad = torch.zeros(len(batch), shape_0, dtype=torch.long).to(device)
     for i, item in enumerate(zip(xx, yy)):
         x, y = item
         xx_pad[i, :x.shape[0], :x.shape[1]] = x
@@ -67,7 +66,7 @@ def pad_collate_sorted(batch):
                     break
             else:
                 word_lens.append(j+1)
-    return xx_pad, xx2, yy_pad, torch.tensor(x_lens), y_lens, torch.tensor(word_lens)
+    return xx_pad, yy_pad, torch.tensor(x_lens).to(device), torch.tensor(word_lens).to(device)
 
 
 class PyTorchDataset(torch.utils.data.Dataset):
