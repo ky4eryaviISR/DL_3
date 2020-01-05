@@ -6,63 +6,53 @@ from collections import Counter
 
 from torch.utils.data.dataloader import DataLoader
 
+
 device = 'cuda' if cuda.is_available() else 'cpu'
 
 def pad_collate(batch):
   (xx, yy) = zip(*batch)
   x_lens = [len(x) for x in xx]
   y_lens = [len(y) for y in yy]
-  xx_pad = pad_sequence(xx, batch_first=True, padding_value=0)
-  yy_pad = pad_sequence(yy, batch_first=True, padding_value=0)
+  xx_pad = pad_sequence(xx, batch_first=True, padding_value=0).to(device)
+  yy_pad = pad_sequence(yy, batch_first=True, padding_value=0).to(device)
 
-  return xx_pad, yy_pad, x_lens, y_lens, None
+  return xx_pad, yy_pad, x_lens, None
 
+
+def padding(x, max):
+    diff = max - len(x)
+    return x + [0] * diff
 
 def complex_pad_collate(batch):
-    (xx, yy) = zip(*batch)
-    x_lens = [len(xx[i][0]) for i, _ in enumerate(xx)]
-    y_lens = [len(y) for y in yy]
+    X, X2, Y, sentence_length, length_word = zip(*batch)
+    max_word = max([j for i in length_word for j in i])
+    max_sentence = max(sentence_length)
+    word = torch.zeros((len(batch), max_sentence, max_word), dtype=torch.long).to(device=device)
+    sentence = torch.zeros((len(batch), max_sentence), dtype=torch.long).to(device=device)
+    yy_pad = torch.zeros((len(batch), max_sentence), dtype=torch.long).to(device=device)
+    length_word = padding(sum(length_word, []), max_sentence*len(batch))
+    for i, item in enumerate(zip(X, X2, Y)):
+        sen, w, y = item
+        w = [padding(i,max_word) for i in w]
+        word[i, :sentence_length[i], :max_word] = torch.Tensor(w)
+        sentence[i, :sentence_length[i]] = torch.Tensor(sen)
+        yy_pad[i, :sentence_length[i]] = torch.Tensor(y)
 
-    shape_0 = max([xx[i][1].shape[0] for i, _ in enumerate(xx)])
-    shape_1 = max([xx[i][1].shape[1] for i, _ in enumerate(xx)])
-    xx_pad = torch.zeros(len(batch), shape_0, shape_1, dtype=torch.long).to(device=device)
-
-    shape_0 = max([xx[i][0].shape[0] for i, _ in enumerate( xx )])
-    xx2_pad = torch.zeros(len(batch),shape_0, dtype=torch.long).to(device=device)
-
-    yy_pad = torch.zeros(len(batch), shape_0, dtype=torch.long).to(device=device)
-    for i, item in enumerate(zip(xx, yy)):
-        temp, y = item
-        sen, word = temp
-        xx_pad[i, :word.shape[0], :word.shape[1]] = word
-        xx2_pad[i, :sen.shape[0]] = sen
-        yy_pad[i, :word.shape[0]] = y
-    word_lens = []
-    for k in range( xx_pad.shape[0]):
-        for i in range( xx_pad.shape[1]):
-            for j in range( xx_pad.shape[2]):
-                if xx_pad[k][i][j] == 0:
-                    word_lens.append(j)
-                    break
-            else:
-                word_lens.append(j + 1)
-    return (xx_pad, xx2_pad), yy_pad, torch.tensor(x_lens), y_lens, torch.tensor(word_lens)
+    return (sentence, word), yy_pad, torch.tensor(sentence_length), torch.tensor(length_word)
 
 
 def pad_collate_sorted(batch):
-    (xx, yy) = zip(*batch)
-    xx2 = None
-    if type(xx) == tuple:
+    if len(list(zip(*batch))) > 2:
         return complex_pad_collate(batch)
-    elif xx[0].dim() == 1:
+    (xx, yy) = zip(*batch)
+    if xx[0].dim() == 1 or xx[0].shape[1]==3:
         return pad_collate(batch)
 
     x_lens = [len(x) for x in xx]
-    y_lens = [len(y) for y in yy]
     shape_0 = max([item.shape[0] for item in xx])
     shape_1 = max([item.shape[1] for item in xx])
-    xx_pad = torch.zeros(len(batch), shape_0, shape_1, dtype=torch.long)
-    yy_pad = torch.zeros(len(batch), shape_0, dtype=torch.long)
+    xx_pad = torch.zeros(len(batch), shape_0, shape_1, dtype=torch.long).to(device)
+    yy_pad = torch.zeros(len(batch), shape_0, dtype=torch.long).to(device)
     for i, item in enumerate(zip(xx, yy)):
         x, y = item
         xx_pad[i, :x.shape[0], :x.shape[1]] = x
@@ -76,7 +66,7 @@ def pad_collate_sorted(batch):
                     break
             else:
                 word_lens.append(j+1)
-    return xx_pad, xx2, yy_pad, torch.tensor(x_lens), y_lens, torch.tensor(word_lens)
+    return xx_pad, yy_pad, torch.tensor(x_lens).to(device), torch.tensor(word_lens).to(device)
 
 
 class PyTorchDataset(torch.utils.data.Dataset):
@@ -300,6 +290,9 @@ class CharSentenceDataset(PyTorchDataset):
 
     def __init__(self, path):
         self.sentences_var = []
+        self.word_sentences = []
+        self.sentence_length = []
+        self.length_word = []
         sentences, targets = self.load_data(path)
         train = False
         if not PyTorchDataset.word_to_num:
@@ -324,7 +317,10 @@ class CharSentenceDataset(PyTorchDataset):
                     temp_sentences.append(word)
                     temp_targets.append(label)
                 except ValueError:
+                    self.length_word.append([len(row) for row in temp_sentences_char])
+                    self.sentence_length.append(len(temp_sentences))
                     self.sentences_var.append(temp_sentences_char)
+                    self.word_sentences.append(temp_sentences)
                     sequens_sen_char = ' '.join(set([c for row in temp_sentences_char for c in row]))
                     sequens_sen = ' '.join(temp_sentences)
                     sequens_tar = ' '.join(temp_targets)
@@ -370,10 +366,9 @@ class CharSentenceDataset(PyTorchDataset):
             num_sentences_char.append(sen_temp)
 
         num_sentences_word = []
-        for sen in sentences[0]:
+        for sen in self.word_sentences:
             sen_temp = []
-            words = sen.split()
-            for www in words:
+            for www in sen:
                 if train and PyTorchDataset.vocab[www] < 5:
                     www = 'UNK'
                 elif not train and www not in PyTorchDataset.word_to_num.keys():
@@ -394,15 +389,9 @@ class CharSentenceDataset(PyTorchDataset):
 
         return num_sentences_word, num_sentences_char, num_targets
 
-    def padding(self, x, max):
-        diff = max - len(x)
-        return x + [0]*diff
-
     def __getitem__(self, idx):
         x1, x2, y = self.X[idx], self.X2[idx], self.Y[idx]
-        max_len = max([len(lst) for lst in x2])
-        x2 = [self.padding(item, max_len) for item in x2]
-        data = torch.tensor(x1, dtype=torch.long)
-        data2 = torch.tensor(x2, dtype=torch.long)
-        target = torch.tensor(y, dtype=torch.long)
-        return ((data,data2), target)
+        # data = torch.tensor(x1, dtype=torch.long)
+        # data2 = torch.tensor(x2, dtype=torch.long)
+        # target = torch.tensor(y, dtype=torch.long)
+        return self.X[idx], self.X2[idx], self.Y[idx], self.sentence_length[idx], self.length_word[idx]

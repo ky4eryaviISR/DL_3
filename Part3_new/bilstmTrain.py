@@ -25,23 +25,21 @@ variation = {
         'loader': PyTorchDataset,
         'model': BidirectionRnn,
         'pos': {
-            'hid': 80,
+            'hid': 128,
             'emb_dim': 128,
             'batch_size': 4,
-            'lr': 0.005,
+            'lr': 0.001,
         },
         'ner': {
-            'hid': 64,
-            'emb_dim': 128,
-            'batch_size': 2,
-            'lr': 0.003,
+            'hid': 60,
+            'emb_dim': 150,
+            'batch_size': 8,
+            'lr': 0.002,
         }
     },
     'b': {
         'loader': CharDataset,
         'model': BidirectionRnnCharToSequence,
-        'padd_func': [],
-        'lr': 0.01,
         'pos': {
             'hid': 80,
             'emb_dim': 128,
@@ -52,7 +50,7 @@ variation = {
         'ner': {
             'hid': 32,
             'emb_dim': 50,
-            'batch_size': 1,
+            'batch_size': 8,
             'lr': 0.0005,
             'btw_rnn': 100
         }
@@ -76,24 +74,23 @@ variation = {
     'd': {
         'loader': CharSentenceDataset,
         'model': ComplexRNN,
-        'padd_func': [],
-        'lr': 0.01,
         'pos': {
-            'hid': 80,
+            'hid': 100,
             'emb_dim': 128,
-            'batch_size': 4,
-            'lr': 0.005,
+            'batch_size': 8,
+            'lr': 0.007,
             'btw_rnn': 32
         },
         'ner': {
             'hid': 32,
-            'emb_dim': 50,
-            'batch_size': 1,
+            'emb_dim': 128,
+            'batch_size': 8,
             'lr': 0.0005,
             'btw_rnn': 100
         }
     }
 }
+
 
 
 def evaluate(model, test_loader, corpus, criterion):
@@ -103,12 +100,12 @@ def evaluate(model, test_loader, corpus, criterion):
     tag_pad_token = PyTorchDataset.target_to_num['<PAD>']
     model.eval()
     with torch.no_grad():
-        for data, labels, len_data, _, lane_size in test_loader:
-            labels = labels.view(-1)
+        for x_batch, y_batch, len_x, lane_size in test_loader:
+            labels = y_batch.view(-1)
             if lane_size is not None:
-                probs = model(data, len_data, lane_size).view(-1, tag_size)
+                probs = model(x_batch, len_x, lane_size).view(-1, tag_size)
             else:
-                probs = model(data, len_data).view(-1, tag_size)
+                probs = model(x_batch, len_x).view(-1, tag_size)
             _, predicted = torch.max(probs.data, 1)
 
             if corpus == 'pos':
@@ -145,7 +142,7 @@ def train(model, train_loader, test_loader, repr_val, lr, epoch, corpus):
     for i in range(epoch):
         passed_sen = 0
         print(f"{datetime.now()}:Epoch number: {i+1}")
-        for x_batch, y_batch, len_x, len_y, lane_size in train_loader:
+        for x_batch, y_batch, len_x, lane_size in train_loader:
             # print(f"{datetime.now()}:NEW BATCH")
             passed_sen += int(y_batch.shape[0])
             y_batch = y_batch.view(-1)
@@ -191,5 +188,5 @@ if __name__ == '__main__':
     bi_rnn = model(**args).to(device)
 
     train_set = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=pad_collate_sorted)
-    test_set = DataLoader(test_dataset, batch_size=64, shuffle=True, collate_fn=pad_collate_sorted)
+    test_set = DataLoader(test_dataset, batch_size=32, shuffle=True, collate_fn=pad_collate_sorted)
     train(bi_rnn, train_set, test_set, repr_val, lr=lr, epoch=5, corpus=corpus)

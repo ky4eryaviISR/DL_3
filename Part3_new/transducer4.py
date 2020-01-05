@@ -35,17 +35,16 @@ class ComplexRNN(nn.Module):
                                                    device=device,
                                                    padding_idx=padding_idx,
                                                    btw_rnn=btw_rnn).to(device)
-        self.hidden2out = nn.Linear(tagset_size, tagset_size)
+        self.hidden2out = nn.Linear(tagset_size * 2, tagset_size)
         self.softmax = nn.Softmax(dim=2)
 
     def forward(self, sentence, sen_len, word_len):
         """
         The process of the model prediction
         """
-        out1 = self.modelA(sentence[1], sen_len)
-        out2 = self.modelB(sentence[0], sen_len, word_len)
-        # out = torch.cat((out1, out2), dim=2)
-        out = (out1+out2)/2
+        out1 = self.modelA(sentence[0], sen_len)
+        out2 = self.modelB(sentence[1], sen_len, word_len)
+        out = torch.cat((out1, out2), dim=2)
         out = self.hidden2out(out)
         probs = self.softmax(out)
         return probs
