@@ -12,7 +12,6 @@ device = 'cuda' if cuda.is_available() else 'cpu'
 def pad_collate(batch):
   (xx, yy) = zip(*batch)
   x_lens = [len(x) for x in xx]
-  y_lens = [len(y) for y in yy]
   xx_pad = pad_sequence(xx, batch_first=True, padding_value=0).to(device)
   yy_pad = pad_sequence(yy, batch_first=True, padding_value=0).to(device)
 
@@ -22,6 +21,7 @@ def pad_collate(batch):
 def padding(x, max):
     diff = max - len(x)
     return x + [0] * diff
+
 
 def pad_part_2(batch):
     X, X2, Y, sentence_length, length_word = zip(*batch)
@@ -191,7 +191,7 @@ class CharDataset(PyTorchDataset):
         self.sentences_var = []
         self.length_word = []
         self.sentence_length = []
-        super(CharDataset, self).__init__(path,variation)
+        super(CharDataset, self).__init__(path, variation)
 
     def load_data(self, path):
         with open(path) as file:
