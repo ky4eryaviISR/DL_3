@@ -195,7 +195,6 @@ class CharDataset(PyTorchDataset):
 
     def load_data(self, path):
         with open(path) as file:
-            temp_sentences = []
             temp_sentences_char = []
             sentences_char = []
             temp_targets = []

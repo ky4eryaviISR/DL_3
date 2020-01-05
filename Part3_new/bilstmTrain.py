@@ -170,7 +170,7 @@ if __name__ == '__main__':
     batch_size = variation[repr_val][corpus]['batch_size']
 
     train_dataset = dataset_func(train_file, repr_val)
-    test_dataset = dataset_func(test_file)
+    test_dataset = dataset_func(test_file,repr_val)
     tag_size = len( PyTorchDataset.target_to_num )
     args = {'vocab_size': len(PyTorchDataset.word_to_num),
             'embedding_dim': variation[repr_val][corpus]['emb_dim'],
