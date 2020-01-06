@@ -65,10 +65,10 @@ variation = {
             'lr': 0.05
         },
         'ner': {
-            'hid': 32,
-            'emb_dim': 128,
-            'batch_size': 8,
-            'lr': 0.003,
+            'hid': 100,
+            'emb_dim': 1500,
+            'batch_size': 80,
+            'lr': 0.005,
         }
     },
     'd': {
