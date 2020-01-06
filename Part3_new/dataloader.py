@@ -6,23 +6,24 @@ from collections import Counter
 
 from torch.utils.data.dataloader import DataLoader
 
+
 device = 'cuda' if cuda.is_available() else 'cpu'
 
 def pad_collate(batch):
   (xx, yy) = zip(*batch)
   x_lens = [len(x) for x in xx]
-  y_lens = [len(y) for y in yy]
-  xx_pad = pad_sequence(xx, batch_first=True, padding_value=0)
-  yy_pad = pad_sequence(yy, batch_first=True, padding_value=0)
+  xx_pad = pad_sequence(xx, batch_first=True, padding_value=0).to(device)
+  yy_pad = pad_sequence(yy, batch_first=True, padding_value=0).to(device)
 
-  return xx_pad, yy_pad, x_lens, y_lens, None
+  return xx_pad, yy_pad, x_lens, None
 
 
 def padding(x, max):
     diff = max - len(x)
     return x + [0] * diff
 
-def complex_pad_collate(batch):
+
+def pad_part_2(batch):
     X, X2, Y, sentence_length, length_word = zip(*batch)
     max_word = max([j for i in length_word for j in i])
     max_sentence = max(sentence_length)
@@ -39,21 +40,35 @@ def complex_pad_collate(batch):
 
     return (sentence, word), yy_pad, torch.tensor(sentence_length), torch.tensor(length_word)
 
+def pad_part_3(batch):
+    X, Y, sentence_length, length_word = zip(*batch)
+    max_word = max([j for i in length_word for j in i])
+    max_sentence = max(sentence_length)
+    word = torch.zeros((len(batch), max_sentence, max_word), dtype=torch.long).to(device=device)
+    yy_pad = torch.zeros((len(batch), max_sentence), dtype=torch.long).to(device=device)
+    length_word = padding(sum(length_word, []), max_sentence * len(batch))
+    for i, item in enumerate(zip(X, Y)):
+        w, y = item
+        w = [padding(i, max_word) for i in w]
+        word[i, :sentence_length[i], :max_word] = torch.Tensor(w)
+        yy_pad[i, :sentence_length[i]] = torch.Tensor(y)
+
+    return word, yy_pad, torch.tensor(sentence_length), torch.tensor(length_word)
 
 def pad_collate_sorted(batch):
-    if len(list(zip(*batch))) > 2:
-        return complex_pad_collate(batch)
+    if PyTorchDataset.variation == 'd':
+        return pad_part_2(batch)
+    if PyTorchDataset.variation == 'b':
+        return pad_part_3(batch)
     (xx, yy) = zip(*batch)
-    xx2 = None
-    if xx[0].dim() == 1:
+    if xx[0].dim() == 1 or PyTorchDataset.variation == 'c':
         return pad_collate(batch)
 
     x_lens = [len(x) for x in xx]
-    y_lens = [len(y) for y in yy]
     shape_0 = max([item.shape[0] for item in xx])
     shape_1 = max([item.shape[1] for item in xx])
-    xx_pad = torch.zeros(len(batch), shape_0, shape_1, dtype=torch.long)
-    yy_pad = torch.zeros(len(batch), shape_0, dtype=torch.long)
+    xx_pad = torch.zeros(len(batch), shape_0, shape_1, dtype=torch.long).to(device)
+    yy_pad = torch.zeros(len(batch), shape_0, dtype=torch.long).to(device)
     for i, item in enumerate(zip(xx, yy)):
         x, y = item
         xx_pad[i, :x.shape[0], :x.shape[1]] = x
@@ -67,7 +82,7 @@ def pad_collate_sorted(batch):
                     break
             else:
                 word_lens.append(j+1)
-    return xx_pad, xx2, yy_pad, torch.tensor(x_lens), y_lens, torch.tensor(word_lens)
+    return xx_pad, yy_pad, torch.tensor(x_lens).to(device), torch.tensor(word_lens).to(device)
 
 
 class PyTorchDataset(torch.utils.data.Dataset):
@@ -77,16 +92,18 @@ class PyTorchDataset(torch.utils.data.Dataset):
         1. On-demand normalization
         2. Returns torch.tensor instead of ndarray
     """
+    variation = None
     word_to_num = None
     target_to_num = None
     num_to_target = None
     vocab = None
 
-    def __init__(self, path):
+    def __init__(self, path, variation='a'):
         sentences, targets = self.load_data(path)
         train = False
         if not PyTorchDataset.word_to_num:
             self.create_dictionaries(sentences, targets)
+            PyTorchDataset.variation = variation
             train = True
 
         self.X, self.Y = self.convert2num(sentences, targets, train)
@@ -170,32 +187,37 @@ class PyTorchDataset(torch.utils.data.Dataset):
 
 class CharDataset(PyTorchDataset):
 
-    def __init__(self, path):
+    def __init__(self, path, variation=None):
         self.sentences_var = []
-        super(CharDataset, self).__init__(path)
+        self.length_word = []
+        self.sentence_length = []
+        super(CharDataset, self).__init__(path, variation)
 
     def load_data(self, path):
         with open(path) as file:
-            temp_sentences = []
+            temp_sentences_char = []
+            sentences_char = []
             temp_targets = []
-            sentences = []
             targets = []
 
             for line in file:
                 try:
                     word, label = line.split()
-                    temp_sentences.append(list(word)), temp_targets.append(label)
+                    temp_sentences_char.append(list(word))
+                    temp_targets.append(label)
                 except ValueError:
-                    self.sentences_var.append(temp_sentences)
-                    sequens_sen = ' '.join(set([c for row in temp_sentences for c in row]))
+                    self.length_word.append([len(row) for row in temp_sentences_char])
+                    self.sentence_length.append(len(temp_sentences_char))
+                    self.sentences_var.append(temp_sentences_char)
+                    sequens_sen_char = ' '.join(set([c for row in temp_sentences_char for c in row]))
                     sequens_tar = ' '.join(temp_targets)
-                    sentences.append(sequens_sen)
+                    sentences_char.append(sequens_sen_char)
                     targets.append(sequens_tar)
 
-                    temp_sentences = []
                     temp_targets = []
+                    temp_sentences_char = []
 
-        return sentences, targets
+        return sentences_char, targets
 
     def convert2num(self, sentences, targets, train):
         num_sentences = []
@@ -220,19 +242,14 @@ class CharDataset(PyTorchDataset):
         return x + [0]*diff
 
     def __getitem__(self, idx):
-        x, y = self.X[idx], self.Y[idx]
-        max_len = max([len(lst) for lst in x])
-        x = [self.padding(item, max_len) for item in x]
-        data = torch.tensor(x, dtype=torch.long)
-        target = torch.tensor(y, dtype=torch.long)
-        return (data, target)
+        return self.X[idx], self.Y[idx], self.sentence_length[idx], self.length_word[idx]
 
 
 class PyTorchDataset_C(PyTorchDataset):
 
-    def __init__(self, path):
+    def __init__(self, path, variation):
         self.sentences_var = []
-        super(PyTorchDataset_C, self).__init__(path)
+        super(PyTorchDataset_C, self).__init__(path, variation)
 
     def load_data(self, path):
         with open(path) as file:
@@ -289,7 +306,7 @@ class CharSentenceDataset(PyTorchDataset):
     word_to_num = {}
     vocab = {}
 
-    def __init__(self, path):
+    def __init__(self, path, variation='a'):
         self.sentences_var = []
         self.word_sentences = []
         self.sentence_length = []
@@ -298,6 +315,7 @@ class CharSentenceDataset(PyTorchDataset):
         train = False
         if not PyTorchDataset.word_to_num:
             self.create_dictionaries(sentences, targets)
+            PyTorchDataset.variation = variation
             train = True
 
         self.X, self.X2, self.Y = self.convert2num(sentences, targets, train)
@@ -391,8 +409,4 @@ class CharSentenceDataset(PyTorchDataset):
         return num_sentences_word, num_sentences_char, num_targets
 
     def __getitem__(self, idx):
-        x1, x2, y = self.X[idx], self.X2[idx], self.Y[idx]
-        # data = torch.tensor(x1, dtype=torch.long)
-        # data2 = torch.tensor(x2, dtype=torch.long)
-        # target = torch.tensor(y, dtype=torch.long)
         return self.X[idx], self.X2[idx], self.Y[idx], self.sentence_length[idx], self.length_word[idx]

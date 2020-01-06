@@ -25,23 +25,21 @@ variation = {
         'loader': PyTorchDataset,
         'model': BidirectionRnn,
         'pos': {
-            'hid': 80,
+            'hid': 128,
             'emb_dim': 128,
             'batch_size': 4,
-            'lr': 0.005,
+            'lr': 0.001,
         },
         'ner': {
-            'hid': 64,
-            'emb_dim': 128,
-            'batch_size': 2,
-            'lr': 0.003,
+            'hid': 60,
+            'emb_dim': 150,
+            'batch_size': 8,
+            'lr': 0.002,
         }
     },
     'b': {
         'loader': CharDataset,
         'model': BidirectionRnnCharToSequence,
-        'padd_func': [],
-        'lr': 0.01,
         'pos': {
             'hid': 80,
             'emb_dim': 128,
@@ -52,7 +50,7 @@ variation = {
         'ner': {
             'hid': 32,
             'emb_dim': 50,
-            'batch_size': 1,
+            'batch_size': 8,
             'lr': 0.0005,
             'btw_rnn': 100
         }
@@ -92,6 +90,7 @@ variation = {
         }
     }
 }
+
 
 
 def evaluate(model, test_loader, corpus, criterion):
@@ -170,8 +169,8 @@ if __name__ == '__main__':
     lr = variation[repr_val][corpus]['lr']
     batch_size = variation[repr_val][corpus]['batch_size']
 
-    train_dataset = dataset_func(train_file)
-    test_dataset = dataset_func(test_file)
+    train_dataset = dataset_func(train_file, repr_val)
+    test_dataset = dataset_func(test_file,repr_val)
     tag_size = len( PyTorchDataset.target_to_num )
     args = {'vocab_size': len(PyTorchDataset.word_to_num),
             'embedding_dim': variation[repr_val][corpus]['emb_dim'],
