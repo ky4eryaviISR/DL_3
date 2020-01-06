@@ -83,8 +83,8 @@ variation = {
             'btw_rnn': 500
         },
         'ner': {
-            'hid': 32,
-            'emb_dim': 128,
+            'hid': (32, 32),
+            'emb_dim': (1000, 80),
             'batch_size': 8,
             'lr': 0.0005,
             'btw_rnn': 100
