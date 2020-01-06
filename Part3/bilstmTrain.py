@@ -76,11 +76,11 @@ variation = {
         'loader': CharSentenceDataset,
         'model': ComplexRNN,
         'pos': {
-            'hid': 100,
-            'emb_dim': 128,
-            'batch_size': 4,
-            'lr': 0.007,
-            'btw_rnn': 32
+            'hid':  (128, 100),
+            'emb_dim': (256, 80),
+            'batch_size': 16,
+            'lr': 0.003,
+            'btw_rnn': 500
         },
         'ner': {
             'hid': 32,
@@ -175,7 +175,7 @@ def train(model, train_loader, test_loader, lr, epoch, corpus):
 
     write2file('loss', loss_dev)
     write2file('acc', acc_dev)
-
+    torch.save(model.state_dict())
 
 if __name__ == '__main__':
 
