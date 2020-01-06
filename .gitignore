@@ -137,5 +137,6 @@ Part1/xeger
 side/
 Part3/tag1_False_loss
 Part3/tag1_True_loss
-Part3_new/ner/
-Part3_new/pos/
+Part3/ner/
+Part3/pos/
+ass/
