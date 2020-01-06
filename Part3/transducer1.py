@@ -9,7 +9,7 @@ class BidirectionRnn(nn.Module):
         representation: regular embedding
     """
 
-    def __init__(self, vocab_size, embedding_dim, hidden_dim, tagset_size, batch_size, device, bidirectional=True,padding_idx=None):
+    def __init__(self, vocab_size, embedding_dim, hidden_dim, tagset_size, batch_size, device, bidirectional=True, padding_idx=None):
         """
         Initialize the model
         """
