@@ -31,34 +31,34 @@ variation = {
         'loader': PyTorchDataset,
         'model': BidirectionRnn,
         'pos': {
-            'hid': 128,
-            'emb_dim': 256,
-            'batch_size': 16,
-            'lr': 0.003,
+            'hid': 256,
+            'emb_dim': 2000,
+            'batch_size': 100,
+            'lr': 0.0003,
         },
         'ner': {
-            'hid': 100,
+            'hid': 200,
             'emb_dim': 1000,
             'batch_size': 64,
-            'lr': 0.0007,
+            'lr': 0.0005,
         }
     },
     'b': {
         'loader': CharDataset,
         'model': BidirectionRnnCharToSequence,
         'pos': {
-            'hid': 100,
+            'hid': 120,
             'emb_dim': 80,
             'batch_size': 8,
             'lr': 0.003,
             'btw_rnn': 200
         },
         'ner': {
-            'hid': 100,
+            'hid': 250,
             'emb_dim': 80,
-            'batch_size': 4,
-            'lr': 0.0007,
-            'btw_rnn': 500
+            'batch_size': 80,
+            'lr': 0.003,
+            'btw_rnn': 300
         }
     },
     'c': {
@@ -66,37 +66,36 @@ variation = {
         'model': BidirectionRnnPrefSuff,
         'pos': {
             'hid': 128,
-            'emb_dim': 256,
+            'emb_dim': 30,
             'batch_size': 16,
-            'lr': 0.0007,
+            'lr': 0.007,
         },
         'ner': {
-            'hid': 100,
-            'emb_dim': 1000,
-            'batch_size': 64,
-            'lr': 0.0007,
+            'hid': 250,
+            'emb_dim': 1788,
+            'batch_size': 75,
+            'lr': 0.005,
         }
     },
     'd': {
         'loader': CharSentenceDataset,
         'model': ComplexRNN,
         'pos': {
-            'hid':  (128, 100),
-            'emb_dim': (256, 80),
-            'batch_size': 16,
-            'lr': 0.003,
-            'btw_rnn': 500
+            'hid':  (256, 120),
+            'emb_dim': (2000, 80),
+            'batch_size': 64,
+            'lr': 0.0003,
+            'btw_rnn': 200
         },
         'ner': {
-            'hid': (100, 10),
+            'hid': (200, 250),
             'emb_dim': (1000, 80),
-            'batch_size': 8,
+            'batch_size': 64,
             'lr': 0.0003,
             'btw_rnn': 500
         }
     }
 }
-
 
 def write2file(type_item, item):
     with open(f"{repr_val}_{corpus}_{type_item}", 'w') as file:
