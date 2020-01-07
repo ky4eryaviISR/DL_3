@@ -146,7 +146,7 @@ def train(model, train_loader, test_loader, lr, epoch, corpus):
     acc_dev = []
     if corpus == 'ner':
         print("Loss for NER")
-        weight = [0.05 if k == 'O' else 1 for k, v in
+        weight = [0.3 if k == 'O' else 1 for k, v in
                   {k: v for k, v in sorted(PyTorchDataset.target_to_num.items(),
                                            key=lambda item: item[1])}.items()]
         criterion = nn.CrossEntropyLoss(torch.FloatTensor(weight).to(device),
