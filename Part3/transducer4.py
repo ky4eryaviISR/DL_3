@@ -1,6 +1,5 @@
 import torch
 from torch import nn
-from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 from Part3.transducer1 import BidirectionRnn
 from Part3.transducer2 import BidirectionRnnCharToSequence
@@ -20,16 +19,16 @@ class ComplexRNN(nn.Module):
         super(ComplexRNN, self).__init__()
         # Linear layer
         self.modelA = BidirectionRnn(vocab_size=vocab_size[0],
-                                     embedding_dim=embedding_dim,
-                                     hidden_dim=hidden_dim,
+                                     embedding_dim=embedding_dim[0],
+                                     hidden_dim=hidden_dim[0],
                                      tagset_size=tagset_size,
                                      batch_size=batch_size,
                                      device=device,
                                      padding_idx=padding_idx).to(device)
 
         self.modelB = BidirectionRnnCharToSequence(vocab_size=vocab_size[1],
-                                                   embedding_dim=embedding_dim,
-                                                   hidden_dim=hidden_dim,
+                                                   embedding_dim=embedding_dim[1],
+                                                   hidden_dim=hidden_dim[1],
                                                    tagset_size=tagset_size,
                                                    batch_size=batch_size,
                                                    device=device,

@@ -1,14 +1,15 @@
+import os
 from sys import argv
 import torch
 from torch import cuda, nn
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 
-from Part3.dataloader import PyTorchDataset, pad_collate_sorted, PyTorchDataset_C, CharDataset, CharSentenceDataset
-from Part3.transducer1 import BidirectionRnn
-from Part3.transducer2 import BidirectionRnnCharToSequence
-from Part3.transducer3 import BidirectionRnnPrefSuff
-from Part3.transducer4 import ComplexRNN
+from dataloader import PyTorchDataset, pad_collate_sorted, PyTorchDataset_C, CharDataset, CharSentenceDataset
+from transducer1 import BidirectionRnn
+from transducer2 import BidirectionRnnCharToSequence
+from transducer3 import BidirectionRnnPrefSuff
+from transducer4 import ComplexRNN
 from datetime import datetime
 device = 'cuda' if cuda.is_available() else 'cpu'
 repr_val = argv[1]
@@ -16,6 +17,10 @@ train_file = argv[2]
 model_file = argv[3]
 corpus = argv[4]
 test_file = argv[5]
+target_dict = argv[6]
+word_dict = argv[7]
+word_dict_2 = argv[8] if len(argv) == 9 else None
+
 
 print("Graphical device test: {}".format(torch.cuda.is_available()))
 print("{} available".format(device))
@@ -83,11 +88,11 @@ variation = {
             'btw_rnn': 500
         },
         'ner': {
-            'hid': 32,
-            'emb_dim': 128,
+            'hid': (100, 10),
+            'emb_dim': (1000, 80),
             'batch_size': 8,
-            'lr': 0.0005,
-            'btw_rnn': 100
+            'lr': 0.0003,
+            'btw_rnn': 500
         }
     }
 }
@@ -173,9 +178,10 @@ def train(model, train_loader, test_loader, lr, epoch, corpus):
                 loss_dev.append(loss)
                 acc_dev.append(acc)
 
-    write2file('loss', loss_dev)
-    write2file('acc', acc_dev)
-    torch.save(model.state_dict())
+    write2file('loss', [str(i.item()) for i in loss_dev])
+    write2file('acc', [str(i) for i in acc_dev])
+    torch.save(model.state_dict(), f'model_{repr_val}_{corpus}.pt')
+
 
 if __name__ == '__main__':
 
@@ -183,10 +189,15 @@ if __name__ == '__main__':
     model = variation[repr_val]['model']
     lr = variation[repr_val][corpus]['lr']
     batch_size = variation[repr_val][corpus]['batch_size']
-
-    train_dataset = dataset_func(train_file, repr_val)
-    test_dataset = dataset_func(test_file,repr_val)
-    tag_size = len( PyTorchDataset.target_to_num )
+    if word_dict_2 is not None:
+        word_dict = (word_dict, word_dict_2)
+    train_dataset = dataset_func(path=train_file,
+                                 variation=repr_val,
+                                 word_dict=word_dict,
+                                 target_dict=target_dict,
+                                 is_train=True)
+    test_dataset = dataset_func(test_file, repr_val)
+    tag_size = len(PyTorchDataset.target_to_num)
     args = {'vocab_size': len(PyTorchDataset.word_to_num),
             'embedding_dim': variation[repr_val][corpus]['emb_dim'],
             'hidden_dim': variation[repr_val][corpus]['hid'],
@@ -203,5 +214,5 @@ if __name__ == '__main__':
     bi_rnn = model(**args).to(device)
 
     train_set = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=pad_collate_sorted)
-    test_set = DataLoader(test_dataset, batch_size=32, shuffle=True, collate_fn=pad_collate_sorted)
-    train(bi_rnn, train_set, test_set, lr=lr, epoch=5, corpus=corpus)
+    test_set = DataLoader(test_dataset, batch_size=5, shuffle=False, collate_fn=pad_collate_sorted)
+    train(bi_rnn, train_set, test_set, lr=lr, epoch=1, corpus=corpus)

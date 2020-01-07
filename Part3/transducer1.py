@@ -48,6 +48,7 @@ class BidirectionRnn(nn.Module):
         inputs = sentence
         # (2) embedding layer - Embed the sequences
         embeds = self.embedding(inputs)
+
         embeds = pack_padded_sequence(embeds, word_len, batch_first=True, enforce_sorted=False)
         # (3) Feed into the RNN
         rnn_out, self.hidden = self.rnn(embeds)
