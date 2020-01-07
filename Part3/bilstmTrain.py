@@ -146,7 +146,7 @@ def train(model, train_loader, test_loader, lr, epoch, corpus):
     acc_dev = []
     if corpus == 'ner':
         print("Loss for NER")
-        weight = [0.3 if k == 'O' else 1 for k, v in
+        weight = [0.05 if k == 'O' else 1 for k, v in
                   {k: v for k, v in sorted(PyTorchDataset.target_to_num.items(),
                                            key=lambda item: item[1])}.items()]
         criterion = nn.CrossEntropyLoss(torch.FloatTensor(weight).to(device),
@@ -165,9 +165,9 @@ def train(model, train_loader, test_loader, lr, epoch, corpus):
             model.train()
             optimizer.zero_grad()
             if lane_size is not None:
-                yhat = model(x_batch, len_x, word_len=lane_size).view(-1, tag_size)
+                yhat = model(x_batch, len_x, word_len=lane_size, soft_max=False).view(-1, tag_size)
             else:
-                yhat = model(x_batch, len_x).view(-1, tag_size)
+                yhat = model(x_batch, len_x, soft_max=False).view(-1, tag_size)
             loss = criterion(yhat, y_batch)
             loss.backward()
             optimizer.step()
@@ -215,4 +215,4 @@ if __name__ == '__main__':
 
     train_set = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=pad_collate_sorted)
     test_set = DataLoader(test_dataset, batch_size=5, shuffle=False, collate_fn=pad_collate_sorted)
-    train(bi_rnn, train_set, test_set, lr=lr, epoch=1, corpus=corpus)
+    train(bi_rnn, train_set, test_set, lr=lr, epoch=5, corpus=corpus)

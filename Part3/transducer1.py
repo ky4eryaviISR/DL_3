@@ -40,7 +40,7 @@ class BidirectionRnn(nn.Module):
         return (torch.zeros(2, batch_size, self.hidden_dim).to(self.device),
                 torch.zeros(2, batch_size, self.hidden_dim).to(self.device))
 
-    def forward(self, sentence, word_len,soft_max=True):
+    def forward(self, sentence, word_len, soft_max=True):
         """
         The process of the model prediction
         """
