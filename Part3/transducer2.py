@@ -47,7 +47,7 @@ class BidirectionRnnCharToSequence(nn.Module):
         return (torch.zeros(1, batch_size, self.btw_rnns).to(self.device),
                 torch.zeros(1, batch_size, self.btw_rnns).to(self.device))
 
-    def forward(self, sentence, sen_len, word_len,soft_max=True):
+    def forward(self, sentence, sen_len, word_len, soft_max=True):
         """
         The process of the model prediction
         """
