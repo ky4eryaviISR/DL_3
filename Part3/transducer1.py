@@ -40,7 +40,7 @@ class BidirectionRnn(nn.Module):
         return (torch.zeros(2, batch_size, self.hidden_dim).to(self.device),
                 torch.zeros(2, batch_size, self.hidden_dim).to(self.device))
 
-    def forward(self, sentence, word_len):
+    def forward(self, sentence, word_len,soft_max=True):
         """
         The process of the model prediction
         """
@@ -56,5 +56,6 @@ class BidirectionRnn(nn.Module):
         rnn_out, _ = pad_packed_sequence(rnn_out, batch_first=True)
         output = self.hidden2out(rnn_out)
         # Softmax
-        probs = self.softmax(output)
-        return probs.view(sentence.shape[0], sentence.shape[1], -1)
+        if soft_max:
+            output = self.softmax(output)
+        return output.view(sentence.shape[0], sentence.shape[1], -1)
