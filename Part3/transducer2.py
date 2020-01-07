@@ -47,7 +47,7 @@ class BidirectionRnnCharToSequence(nn.Module):
         return (torch.zeros(1, batch_size, self.btw_rnns).to(self.device),
                 torch.zeros(1, batch_size, self.btw_rnns).to(self.device))
 
-    def forward(self, sentence, sen_len, word_len):
+    def forward(self, sentence, sen_len, word_len,soft_max=True):
         """
         The process of the model prediction
         """
@@ -91,5 +91,6 @@ class BidirectionRnnCharToSequence(nn.Module):
 
         output = self.hidden2out(rnn_out2)
         # Softmax
-        probs = self.softmax(output)
-        return probs.view(sentence.shape[0], sentence.shape[1], -1)
+        if soft_max:
+            output = self.softmax(output)
+        return output.view(sentence.shape[0], sentence.shape[1], -1)

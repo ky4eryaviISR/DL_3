@@ -1,13 +1,15 @@
 
+from collections import Counter
+import json
+
 import torch
 from torch import cuda
 from torch.nn.utils.rnn import pad_sequence
-from collections import Counter
-
 from torch.utils.data.dataloader import DataLoader
 
 
 device = 'cuda' if cuda.is_available() else 'cpu'
+
 
 def pad_collate(batch):
   (xx, yy) = zip(*batch)
@@ -56,6 +58,7 @@ def pad_part_3(batch):
 
     return word, yy_pad, torch.tensor(sentence_length), torch.tensor(length_word)
 
+
 def pad_collate_sorted(batch):
     if PyTorchDataset.variation == 'd':
         return pad_part_2(batch)
@@ -99,13 +102,14 @@ class PyTorchDataset(torch.utils.data.Dataset):
     num_to_target = None
     vocab = None
 
-    def __init__(self, path, variation='a'):
+    def __init__(self, path, word_dict=None, target_dict=None, is_train=False, variation='a'):
         sentences, targets = self.load_data(path)
         train = False
-        if not PyTorchDataset.word_to_num:
-            self.create_dictionaries(sentences, targets)
+        if is_train and PyTorchDataset.word_to_num is None:
             PyTorchDataset.variation = variation
+            self.create_dictionaries(sentences, targets)
             train = True
+            self.save_dict(word_dict, target_dict)
 
         self.X, self.Y = self.convert2num(sentences, targets, train)
 
@@ -146,7 +150,7 @@ class PyTorchDataset(torch.utils.data.Dataset):
 
         return num_sentences, num_targets
 
-    def create_dictionaries(cls, sentences, targets):
+    def create_dictionaries(self, sentences, targets):
         # toDo Counter and filtering vocab
 
         sen_temp = ' '.join(sentences).split()
@@ -160,7 +164,15 @@ class PyTorchDataset(torch.utils.data.Dataset):
         PyTorchDataset.word_to_num['<PAD>'] = 0
         PyTorchDataset.target_to_num = dict(zip(targets, range(1, len(targets)+1)))
         PyTorchDataset.target_to_num['<PAD>'] = 0
-        PyTorchDataset.num_to_target = {k: v for v, k in cls.target_to_num.items()}
+        PyTorchDataset.num_to_target = {k: v for v, k in self.target_to_num.items()}
+
+
+
+    def save_dict(self, word_dict, target_dic):
+        with open(word_dict+'.json', 'w') as fp:
+            json.dump(PyTorchDataset.word_to_num, fp)
+        with open(target_dic+'.json', 'w') as fp:
+            json.dump(PyTorchDataset.target_to_num, fp)
 
     def load_data(self, path):
         with open(path) as file:
@@ -188,11 +200,11 @@ class PyTorchDataset(torch.utils.data.Dataset):
 
 class CharDataset(PyTorchDataset):
 
-    def __init__(self, path, variation=None):
+    def __init__(self, path, word_dict=None, target_dict=None, is_train=False, variation='a'):
         self.sentences_var = []
         self.length_word = []
         self.sentence_length = []
-        super(CharDataset, self).__init__(path, variation)
+        super(CharDataset, self).__init__(path, word_dict, target_dict, is_train, variation)
 
     def load_data(self, path):
         with open(path) as file:
@@ -248,9 +260,9 @@ class CharDataset(PyTorchDataset):
 
 class PyTorchDataset_C(PyTorchDataset):
 
-    def __init__(self, path, variation):
+    def __init__(self, path, word_dict=None, target_dict=None, is_train=False, variation='a'):
         self.sentences_var = []
-        super(PyTorchDataset_C, self).__init__(path, variation)
+        super(PyTorchDataset_C, self).__init__(path, word_dict, target_dict, is_train=is_train, variation=variation)
 
     def load_data(self, path):
         with open(path) as file:
@@ -307,17 +319,18 @@ class CharSentenceDataset(PyTorchDataset):
     word_to_num = {}
     vocab = {}
 
-    def __init__(self, path, variation='a'):
+    def __init__(self, path, word_dict=None, target_dict=None, is_train=False, variation='a'):
         self.sentences_var = []
         self.word_sentences = []
         self.sentence_length = []
         self.length_word = []
         sentences, targets = self.load_data(path)
         train = False
-        if not PyTorchDataset.word_to_num:
-            self.create_dictionaries(sentences, targets)
+        if is_train and PyTorchDataset.word_to_num is None:
             PyTorchDataset.variation = variation
+            self.create_dictionaries(sentences, targets)
             train = True
+            self.save_dict(word_dict, target_dict)
 
         self.X, self.X2, self.Y = self.convert2num(sentences, targets, train)
 
@@ -376,6 +389,14 @@ class CharSentenceDataset(PyTorchDataset):
         CharSentenceDataset.word_to_num = dict(
             zip(CharSentenceDataset.vocab.keys(), range(1, len(CharSentenceDataset.vocab) + 1)))
         CharSentenceDataset.word_to_num['<PAD>'] = 0
+
+    def save_dict(self, word_dict, target_dict):
+        with open(word_dict+"_1.json", 'w') as fp:
+            json.dump(PyTorchDataset.word_to_num, fp)
+        with open(word_dict+"_2.json", 'w') as fp:
+            json.dump(CharSentenceDataset.word_to_num, fp)
+        with open(target_dict+".json", 'w') as fp:
+            json.dump(PyTorchDataset.target_to_num, fp)
 
     def convert2num(self, sentences, targets, train):
         num_sentences_char = []

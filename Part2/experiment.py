@@ -146,7 +146,7 @@ if __name__ == '__main__':
     pos = argv[1]
     neg = argv[2]
     acceptor = Acceptor(2, emb_length=len(parser),
-                        emb_vec_dim=len(parser), hidden_1=20,  hidden_2=10 ).to(device)
+                        emb_vec_dim=len(parser), hidden_1=20,  hidden_2=10).to(device)
     data, label = load_txt(pos, neg)
 
     train, test = split_shuffle_data()

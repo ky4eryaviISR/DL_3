@@ -13,6 +13,18 @@ except ImportError:
     from xeger import Xeger
 
 
+def generate_pattern():
+    good = []
+    bad = []
+    x = Xeger(limit=15)
+    for i in range(500):
+        good.append(x.xeger(r'[1-9]+a+[1-9]+b+[1-9]+c+[1-9]+d+[1-9]+'))
+        bad.append(x.xeger(r'[1-9]+a+[1-9]+c+[1-9]+b+[1-9]+d+[1-9]+'))
+    with open('pos_examples', 'w') as f:
+        f.write('\n'.join(good))
+    with open('neg_examples', 'w') as f:
+        f.write('\n'.join(bad))
+
 
 def is_prime(n):
     if n==2 or n==3:
@@ -25,6 +37,7 @@ def is_prime(n):
 
     return True
 
+
 def generate_prime():
     good = []
     bad = []
@@ -35,7 +48,6 @@ def generate_prime():
         if i in good or i in bad:
             continue
         if is_prime(i):
-            print(i)
             good.append(str(i))
             count += 1
         elif len(bad) < 500:
@@ -48,7 +60,7 @@ def generate_prime():
         f.write('\n'.join(bad))
 
 
-def generator():
+def generator_divider():
     good = []
     bad = []
     for i in range(500):
@@ -66,12 +78,12 @@ def generator():
                 break
         bad.append(str(b))
 
-
     with open('pos_examples_generator', 'w') as f:
         f.write('\n'.join(good))
     with open('neg_examples_generator', 'w') as f:
         f.write('\n'.join(bad))
 
 
-#generate_prime()
-generator()
+generate_pattern()
+generate_prime()
+generator_divider()

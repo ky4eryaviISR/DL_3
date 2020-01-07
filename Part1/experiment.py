@@ -6,12 +6,36 @@ import torch
 from torch import nn
 from torch import cuda
 from torch.optim import Adam
-
-from utils import PRINT, save_graph
+import enum
+import matplotlib.pyplot as plt
 
 MAX_SIZE = 50
 device = 'cuda' if cuda.is_available() else 'cpu'
-print()
+
+
+class PRINT(enum.Enum):
+    TRAIN_ACC = 1
+    TRAIN_LSS = 2
+    TEST_LSS = 3
+    TEST_ACC = 4
+
+
+to_print = {PRINT.TEST_ACC: [],
+            PRINT.TEST_LSS: [],
+            PRINT.TRAIN_ACC: [],
+            PRINT.TRAIN_LSS: []}
+
+
+def save_graph(train,test,y_axis):
+    plt.suptitle(y_axis, fontsize=20)
+    plt.figure()
+    plt.plot(train, color='r', label='train')
+    plt.plot(test, color='g', label='test')
+    plt.xlabel('Epochs')
+    plt.legend(loc="upper left")
+    plt.ylabel(y_axis)
+    plt.savefig(y_axis+'.png')
+
 
 class Acceptor(nn.Module):
     def __init__(self, output_shape, emb_length, hidden_1, emb_vec_dim, hidden_2=5):
@@ -105,8 +129,8 @@ def train_model(model, train, dev, lr=0.01, epoch=30):
         to_print[PRINT.TEST_ACC].append(acc_dev)
         to_print[PRINT.TEST_LSS].append(loss_dev)
         print(f"Epoch:{t+1} Train Acc:{acc_tr:.2f} Loss:{loss_tr:.4f}  Acc Dev Acc: {acc_dev:.2f} Loss:{loss_dev:.4f} ")
-        if acc_dev == 100 or acc_tr == 100:
-            print("Stop training reached the maximum accuracy on the train")
+        if acc_dev == 100:
+            print("Stop training reached the maximum accuracy on dev")
             break
     save_graph(to_print[PRINT.TRAIN_ACC], to_print[PRINT.TEST_ACC], 'Accuracy')
     save_graph(to_print[PRINT.TRAIN_LSS], to_print[PRINT.TEST_LSS], 'Loss')
