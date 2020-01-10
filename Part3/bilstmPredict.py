@@ -15,34 +15,34 @@ variation = {
         'loader': PyTorchDataset,
         'model': BidirectionRnn,
         'pos': {
-            'hid': 128,
-            'emb_dim': 256,
-            'batch_size': 16,
-            'lr': 0.003,
+            'hid': 256,
+            'emb_dim': 2000,
+            'batch_size': 100,
+            'lr': 0.0003,
         },
         'ner': {
-            'hid': 100,
+            'hid': 200,
             'emb_dim': 1000,
             'batch_size': 64,
-            'lr': 0.0007,
+            'lr': 0.0005,
         }
     },
     'b': {
         'loader': CharDataset,
         'model': BidirectionRnnCharToSequence,
         'pos': {
-            'hid': 100,
+            'hid': 120,
             'emb_dim': 80,
             'batch_size': 8,
             'lr': 0.003,
             'btw_rnn': 200
         },
         'ner': {
-            'hid': 100,
+            'hid': 250,
             'emb_dim': 80,
-            'batch_size': 4,
-            'lr': 0.0007,
-            'btw_rnn': 500
+            'batch_size': 80,
+            'lr': 0.003,
+            'btw_rnn': 300
         }
     },
     'c': {
@@ -50,31 +50,31 @@ variation = {
         'model': BidirectionRnnPrefSuff,
         'pos': {
             'hid': 128,
-            'emb_dim': 256,
+            'emb_dim': 30,
             'batch_size': 16,
-            'lr': 0.0007,
+            'lr': 0.007,
         },
         'ner': {
-            'hid': 100,
-            'emb_dim': 1000,
-            'batch_size': 64,
-            'lr': 0.0007,
+            'hid': 250,
+            'emb_dim': 1500,
+            'batch_size': 75,
+            'lr': 0.005,
         }
     },
     'd': {
         'loader': CharSentenceDataset,
         'model': ComplexRNN,
         'pos': {
-            'hid':  (128, 100),
-            'emb_dim': (256, 80),
-            'batch_size': 16,
-            'lr': 0.003,
-            'btw_rnn': 500
+            'hid':  (256, 120),
+            'emb_dim': (2000, 80),
+            'batch_size': 64,
+            'lr': 0.0003,
+            'btw_rnn': 200
         },
         'ner': {
-            'hid': (100, 10),
+            'hid': (200, 250),
             'emb_dim': (1000, 80),
-            'batch_size': 8,
+            'batch_size': 64,
             'lr': 0.0003,
             'btw_rnn': 500
         }
@@ -109,7 +109,7 @@ def padding(x,max):
     diff = max - len(x)
     return x + [0]*diff
 
-def predict(model, test):
+def predict(model, test, path):
     model.eval()
     predicted = []
     if repr_val != 'd':
@@ -136,8 +136,22 @@ def predict(model, test):
             else:
                 probs = model(x_batch.unsqueeze(0), torch.tensor([x_batch.shape[0]])).view(-1, tag_size)
             predicted.append([indx_2_lbl[i.item()] for i in probs.argmax(dim=1)]+[''])
+    i = 0
+    line = 0
     with open('result', 'w') as fp:
-        fp.write('\n'.join([str(val) for lst in predicted for val in lst]))
+        with open(path) as f:
+            for word in f:
+                if word == '\n':
+                    fp.write(word)
+                    i = 0
+                    line += 1
+                else:
+                    word = word.strip()
+                    label = predicted[line][i]
+                    i += 1
+                    fp.write(f"{word} {label}\n")
+
+
 
 
 def load_data(path):
@@ -151,13 +165,19 @@ def load_data(path):
         if repr_val == 'a':
             for word in file:
                 if word != '\n':
-                    temp_sentences.append(word_dict.get(word.strip(), unk))
+                    word = word.strip()
+                    if word not in word_dict.keys():
+                        word = word_dict.get(word.lower(), unk)
+                    else:
+                        word = word_dict[word]
+                    temp_sentences.append(word)
                 else:
                     sentences.append(torch.tensor(temp_sentences).to(device))
                     temp_sentences = []
         elif repr_val == 'b':
             for word in file:
                 if word != '\n':
+                    word = word.strip()
                     temp_sentences.append([word_dict.get(ch, unk) for ch in list(word.strip())])
                 else:
                     sentences.append(temp_sentences)
@@ -166,7 +186,11 @@ def load_data(path):
             for word in file:
                 if word != '\n':
                     word = word.strip()
-                    res = [word_dict.get(word, unk),
+                    if word not in word_dict.keys():
+                        word_new = word_dict.get(word.lower(), unk)
+                    else:
+                        word_new = word_dict[word]
+                    res = [word_new,
                            word_dict.get(word[:3], unk),
                            word_dict.get(word[-3:], unk)]
                     temp_sentences.append(res)
@@ -176,9 +200,13 @@ def load_data(path):
         else:
             for word in file:
                 if word != '\n':
-                    ch = list(word.strip())
-                    word = word_dict.get(word.strip())
-                    temp_sentences.append(word_dict.get(word, unk))
+                    word = word.strip()
+                    ch = list(word)
+                    if word not in word_dict.keys():
+                        word = word_dict.get(word.lower(), unk)
+                    else:
+                        word = word_dict[word]
+                    temp_sentences.append(word)
                     temp_characters.append([char_dict.get(c, unk_c) for c in ch])
                 else:
                     sentences.append(torch.tensor(temp_sentences).to(device))
@@ -211,4 +239,4 @@ if __name__ == '__main__':
 
     model = variation[repr_val]['model'](**args).to(device)
     model.load_state_dict(torch.load(model_file))
-    predict(model, dataset)
+    predict(model, dataset, test_file)

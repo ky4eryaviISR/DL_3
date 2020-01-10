@@ -179,7 +179,7 @@ def train(model, train_loader, test_loader, lr, epoch, corpus):
 
     write2file('loss', [str(i.item()) for i in loss_dev])
     write2file('acc', [str(i) for i in acc_dev])
-    torch.save(model.state_dict(), f'model_{repr_val}_{corpus}.pt')
+    torch.save(model.state_dict(), model_file)
 
 
 if __name__ == '__main__':

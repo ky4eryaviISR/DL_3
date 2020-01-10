@@ -65,14 +65,14 @@ class Acceptor(nn.Module):
         return (torch.zeros(1, 1, self.hidden_dim).to(device),
                 torch.zeros(1, 1, self.hidden_dim).to(device))
 
-    def forward(self, x):
+    def forward(self, x, soft_max=True):
         out = self.embedded(x).view(x.shape[1], -1, self.emb_vec_size)
         out, self.input_hidden = self.lstm(out, self.input_hidden)
         out = self.hidden(out.view(x.shape[1], 1, -1)[-1])
         out = self.tanh(out)
         out = self.output(out)
-        out = self.softmax(out)
-
+        if soft_max:
+            out = self.softmax(out)
         return out
 
 
@@ -116,7 +116,7 @@ def train_model(model, train, dev, lr=0.01, epoch=30):
             model.input_hidden = (model.input_hidden[0].detach(), model.input_hidden[1].detach())
             x = x.to(device)
             y = y.to(device)
-            yhat = model(x)
+            yhat = model(x,soft_max=False)
             loss = criterion(yhat, y)
             loss.backward()
             optimizer.step()
